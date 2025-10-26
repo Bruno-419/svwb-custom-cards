@@ -1,0 +1,98 @@
+body {
+  background-color: #111;
+  color: #fff;
+  font-family: 'Segoe UI', sans-serif;
+  text-align: center;
+  margin: 0;
+  padding: 20px;
+}
+
+.controls {
+  margin-bottom: 10px;
+}
+
+label {
+  margin: 0 10px;
+}
+
+.text-inputs {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.text-inputs input {
+  width: 800px;
+  padding: 10px;
+  margin: 8px 0;
+  font-size: 18px;
+  border-radius: 6px;
+  border: 1px solid #333;
+  background: #222;
+  color: #fff;
+}
+
+.text-inputs textarea {
+  width: 800px;
+  height: 80px;
+  margin: 6px 0;
+  border-radius: 6px;
+  border: 1px solid #333;
+  background: #222;
+  color: #fff;
+  padding: 8px;
+  resize: vertical;
+}
+
+canvas {
+  border: 2px solid #444;
+  border-radius: 8px;
+  background-color: #000;
+  margin-top: 20px;
+}
+
+/* Modal */
+.modal {
+  display: none;
+  position: fixed;
+  z-index: 999;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0,0,0,0.9);
+  overflow-y: auto;
+}
+
+.modal-content {
+  background-color: #222;
+  margin: 40px auto;
+  padding: 20px;
+  border-radius: 10px;
+  width: 80%;
+  max-width: 900px;
+  text-align: center;
+  box-shadow: 0 0 20px rgba(255,255,255,0.2);
+}
+
+.modal-content img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 0 auto 20px auto;
+}
+
+.modal-buttons {
+  margin-top: 10px;
+  position: sticky;
+  bottom: 0;
+  background: #222;
+  padding: 10px 0;
+}
+
+.modal-buttons button {
+  margin: 0 10px;
+  padding: 10px 20px;
+  font-size: 16px;
+}
