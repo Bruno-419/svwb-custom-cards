@@ -1,58 +1,133 @@
 body {
   background-color: #111;
   color: #fff;
-  font-family: 'Segoe UI', sans-serif;
-  text-align: center;
   margin: 0;
   padding: 20px;
 }
 
-.controls {
-  margin-bottom: 10px;
-}
-
-label {
-  margin: 0 10px;
-}
-
-.text-inputs {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+header {
+  text-align: center;
   margin-bottom: 20px;
 }
 
-.text-inputs input {
-  width: 800px;
-  padding: 10px;
-  margin: 8px 0;
-  font-size: 18px;
-  border-radius: 6px;
-  border: 1px solid #333;
-  background: #222;
-  color: #fff;
+h1 {
+  margin-bottom: 10px;
+  font-size: 2em;
+  letter-spacing: 1px;
 }
 
-.text-inputs textarea {
-  width: 800px;
-  height: 80px;
-  margin: 6px 0;
-  border-radius: 6px;
-  border: 1px solid #333;
+.top-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.upload-btn {
   background: #222;
   color: #fff;
+  border: 1px solid #444;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+.upload-btn input {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+button {
+  background: #333;
+  color: #fff;
+  border: 1px solid #555;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+button:hover, .upload-btn:hover {
+  background: #444;
+}
+
+/* Layout grid */
+.layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  align-items: flex-start;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.left-panel, .right-panel {
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 10px;
+  padding: 20px;
+}
+
+.left-panel label,
+.left-panel input,
+.left-panel select {
+  display: block;
+  margin-bottom: 12px;
+  width: 100%;
+}
+
+select, input[type="number"], input[type="text"], textarea {
+  background: #222;
+  border: 1px solid #333;
+  color: #fff;
+  border-radius: 6px;
   padding: 8px;
+  font-size: 16px;
+  width: 100%;
+}
+
+.stat-row {
+  display: flex;
+  gap: 10px;
+}
+
+.checkbox-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+/* Text inputs and textareas */
+.right-panel input,
+.right-panel textarea {
+  margin-bottom: 10px;
+}
+
+textarea {
   resize: vertical;
+  min-height: 70px;
+}
+
+/* Canvas section */
+.canvas-container {
+  text-align: center;
+  margin-top: 30px;
 }
 
 canvas {
   border: 2px solid #444;
   border-radius: 8px;
   background-color: #000;
-  margin-top: 20px;
+  max-width: 100%;
+  height: auto;
 }
 
-/* Modal */
+/* Modal styles */
 .modal {
   display: none;
   position: fixed;
@@ -85,8 +160,6 @@ canvas {
 
 .modal-buttons {
   margin-top: 10px;
-  position: sticky;
-  bottom: 0;
   background: #222;
   padding: 10px 0;
 }
@@ -95,4 +168,14 @@ canvas {
   margin: 0 10px;
   padding: 10px 20px;
   font-size: 16px;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+  .stat-row {
+    flex-direction: column;
+  }
 }
