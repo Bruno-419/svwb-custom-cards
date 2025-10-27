@@ -275,9 +275,6 @@ textarea { min-height: 70px; resize: vertical; }
   accent-color: #3aa;
 }
 
-/* crest/faith sections */
-.crest-section, .faith-section { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
-
 /* Canvas */
 .canvas-container { text-align: center; margin: 28px 0 60px; }
 canvas { max-width: 100%; height: auto; border-radius: 8px; border: 2px solid #444; background: #000; }
@@ -312,6 +309,123 @@ canvas { max-width: 100%; height: auto; border-radius: 8px; border: 2px solid #4
 /* modal buttons */
 .modal-buttons button { padding:8px 14px; border-radius:8px; }
 
+/* === Art Preview Slider Styling === */
+.preview-column input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  background: #444;
+  border-radius: 2px;
+  outline: none;
+  margin-top: 30px; /* adds spacing above the slider */
+  margin-bottom: 20px; /* adds space below */
+}
+
+/* Track (for Firefox) */
+.preview-column input[type="range"]::-moz-range-track {
+  background: #444;
+  height: 4px;
+  border-radius: 2px;
+}
+
+/* Slider thumb (handle) */
+.preview-column input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  background: #ddd;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.preview-column input[type="range"]::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  background: #ddd;
+  border-radius: 50%;
+  cursor: pointer;
+  border: none;
+  transition: background 0.2s;
+}
+
+/* Hover effect for thumb */
+.preview-column input[type="range"]::-webkit-slider-thumb:hover,
+.preview-column input[type="range"]::-moz-range-thumb:hover {
+  background: #fff;
+}
+
+/* Gold adornment for Evolve Text */
+#evolveText {
+  position: relative;
+  border-left: 6px solid #d6a629; /* gold border */
+  padding-left: 10px; /* space so text doesn't touch border */
+  box-shadow: inset 0 0 0 1px rgba(255, 215, 0, 0.15); /* subtle glow */
+  border-top-left-radius: 6px;
+  border-bottom-left-radius: 6px;
+}
+
+/* Purple adornment for Super-Evolve Text */
+#superEvolveText {
+  position: relative;
+  border-left: 6px solid #a529d6; /* purple border */
+  padding-left: 10px; /* space so text doesn't touch border */
+  box-shadow: inset 0 0 0 1px rgba(255, 0, 255, 0.15); /* subtle glow */
+  border-top-left-radius: 6px;
+  border-bottom-left-radius: 6px;
+}
+
+/* === Adorned Faith Section === */
+.adorned-faith {
+  position: relative;
+  padding: 14px 16px;
+  border-left: 6px solid #e6781f; /* Orange border */
+  background: #1c1c1c;
+  border-radius: 8px;
+  box-shadow: inset 0 0 0 1px rgba(255, 140, 0, 0.2);
+}
+
+/* Keep consistent layout inside */
+.adorned-faith .faith-inner {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 10px;
+}
+
+.faith-art-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* === Adorned Faith Section === */
+.adorned-crest {
+  position: relative;
+  padding: 14px 16px;
+  border-left: 6px solid #bcbcbc; /* Orange border */
+  background: #1c1c1c;
+  border-radius: 8px;
+  box-shadow: inset 0 0 0 1px rgba(147, 143, 139, 0.2);
+}
+
+/* Keep consistent layout inside */
+.adorned-crest .crest-inner {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 10px;
+}
+
+.crest-art-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+
 /* --------------------------
    Responsive
    -------------------------- */
@@ -327,4 +441,213 @@ canvas { max-width: 100%; height: auto; border-radius: 8px; border: 2px solid #4
   .stat-row { flex-direction: column; }
   .top-buttons { flex-direction: column; gap: 8px; }
   .checkbox-inline { gap: 8px; }
+}
+
+/* === Make all zoom sliders visually identical === */
+.zoom-slider,
+.icon-preview .zoom-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  background: #444;
+  border-radius: 2px;
+  outline: none;
+  margin-top: 12px;
+  margin-bottom: 20px;
+}
+
+/* Track (for Firefox) */
+.zoom-slider::-moz-range-track,
+.icon-preview .zoom-slider::-moz-range-track {
+  background: #444;
+  height: 4px;
+  border-radius: 2px;
+}
+
+/* Slider thumb (handle) */
+.zoom-slider::-webkit-slider-thumb,
+.icon-preview .zoom-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  background: #ddd;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.zoom-slider::-moz-range-thumb,
+.icon-preview .zoom-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  background: #ddd;
+  border-radius: 50%;
+  cursor: pointer;
+  border: none;
+  transition: background 0.2s;
+}
+
+/* Hover effect */
+.zoom-slider::-webkit-slider-thumb:hover,
+.icon-preview .zoom-slider::-webkit-slider-thumb:hover,
+.zoom-slider::-moz-range-thumb:hover,
+.icon-preview .zoom-slider::-moz-range-thumb:hover {
+  background: #fff;
+}
+
+/* === Crest & Faith section refined layout === */
+.crest-section,
+.faith-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.crest-controls,
+.faith-controls {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+/* Left column: Upload button and Name field */
+.crest-left,
+.faith-left {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  align-items: flex-start;
+}
+
+/* Compact upload button */
+.upload-btn.small {
+  padding: 0.25rem 0.75rem;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+/* Preview (art circle + slider) to the right */
+.crest-preview,
+.faith-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+  transform: translateX(-20px); /* pull preview slightly left */
+}
+
+.crest-preview canvas,
+.faith-preview canvas {
+  border-radius: 50%;
+  border: 1px solid #333;
+  background-color: #000;
+}
+
+/* Slider style — matches main art preview */
+.crest-preview input[type="range"],
+.faith-preview input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 80px;
+  height: 3px;
+  background: #333;
+  border-radius: 2px;
+  outline: none;
+}
+
+.crest-preview input[type="range"]::-webkit-slider-thumb,
+.faith-preview input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #00bfa6;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.crest-preview input[type="range"]::-webkit-slider-thumb:hover,
+.faith-preview input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.1);
+}
+
+/* === Narrow Crest & Faith Name Fields + Sliders === */
+
+/* Narrow the name input fields */
+.crest-section input[type="text"],
+.faith-section input[type="text"] {
+  width: 30% !important; /* ensures override */
+  display: inline-block;
+}
+
+/* Make the zoom sliders narrower */
+.crest-art-container .zoom-slider,
+.faith-art-container .zoom-slider {
+  width: 80px !important;
+  margin-top: 6px;
+}
+
+/* Tweak layout for tighter alignment */
+.crest-art-container,
+.faith-art-container {
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin-left: +50px; /* moves art & slider closer to left edge */
+}
+
+/* Optional: keep everything visually balanced */
+.crest-section,
+.faith-section {
+  gap: 10px;
+}
+
+
+/* === Compact layout for Crest / Faith sections === */
+
+/* Tighten spacing inside each section */
+.crest-section,
+.faith-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Upload button spacing */
+.crest-section .upload-btn.small,
+.faith-section .upload-btn.small {
+  margin-bottom: 4px; /* pull button closer to name field */
+}
+
+/* Name field narrower and tighter */
+.crest-section input[type="text"],
+.faith-section input[type="text"] {
+  width: 70% !important;
+  margin-bottom: 6px; /* slight gap before preview */
+}
+
+/* Compact preview area positioning */
+.crest-art-container,
+.faith-art-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin-top: -2px; /* brings preview closer to text field */
+  margin-bottom: -6px; /* brings text field closer below */
+}
+
+/* Smaller slider width and spacing */
+.crest-art-container .zoom-slider,
+.faith-art-container .zoom-slider {
+  width: 70px !important;
+  margin-top: 4px;
+  margin-bottom: 4px;
 }
