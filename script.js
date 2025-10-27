@@ -54,6 +54,8 @@ const assets = {
 const canvas = document.getElementById("previewCanvas");
 const ctx = canvas.getContext("2d");
 const nameInput = document.getElementById("cardName");
+const crestNameInput = document.getElementById("crestName");
+const faithNameInput = document.getElementById("faithName");
 const traitInput = document.getElementById("cardTrait");
 const classSelect = document.getElementById("cardClass");
 const typeSelect = document.getElementById("cardType");
@@ -112,17 +114,6 @@ Object.values(textInputs).forEach((textarea) => {
   });
 });
 
-// --- Toggle Crest/Faith upload buttons ---
-function toggleIconUploads() {
-  const crestHasText = textInputs.crest.value.trim() !== "";
-  const faithHasText = textInputs.faith.value.trim() !== "";
-  const crestBtn = document.getElementById("crestUploadBtn");
-  const faithBtn = document.getElementById("faithUploadBtn");
-  if (crestBtn) crestBtn.style.display = crestHasText ? "inline-block" : "none";
-  if (faithBtn) faithBtn.style.display = faithHasText ? "inline-block" : "none";
-}
-textInputs.crest.addEventListener("input", toggleIconUploads);
-textInputs.faith.addEventListener("input", toggleIconUploads);
 
 // --- Text highlight keywords ---
 const HIGHLIGHT_KEYWORDS = [
@@ -180,6 +171,7 @@ async function drawTextBlock(key, box, x, startY) {
   const maxLineWidthPx = Math.max(0, wrapLimitX - textStartX);
   const lineHeight = 50;
 
+  // font baseline
   ctx.font = "33px 'Memento'";
   const lines = textValue.split("\n");
 
@@ -189,7 +181,7 @@ async function drawTextBlock(key, box, x, startY) {
     let line = "";
     for (const word of words) {
       const testLine = line ? `${line} ${word}` : word;
-      const testWidth = ctx.measureText(testLine).width;
+      const testWidth = ctx.measureText(testLine.replace(/\*\*|_|<c>|<\/c>/g, "")).width;
       if (testWidth > maxLineWidthPx && line !== "") {
         wrappedLines.push(line);
         line = word;
@@ -216,28 +208,104 @@ async function drawTextBlock(key, box, x, startY) {
   );
 
   let textY = startY + 50 + (key === "crest" || key === "faith" ? 90 : 0);
+
+  // inside drawTextBlock(), replace the token loop with this:
+
+  function applyFontStyle(baseSize, bold, italic) {
+    const weight = bold ? "bold " : "";
+    const style = italic ? "italic " : "";
+    return `${weight}${style}${baseSize}px 'Memento'`;
+  }
+
+  function renderPlainTextPiece(piece, xPos, y) {
+    // handle keyword highlighting on plain pieces
+    const parts = piece.split(HIGHLIGHT_REGEX).filter(Boolean);
+    for (const part of parts) {
+      if (HIGHLIGHT_KEYWORDS.includes(part)) {
+        ctx.font = applyFontStyle(33, false, false);
+        ctx.fillStyle = "#f3d87d";
+      } else {
+        ctx.font = applyFontStyle(33, false, false);
+        ctx.fillStyle = "#efeee9";
+      }
+      ctx.fillText(part, xPos, y);
+      xPos += ctx.measureText(part).width;
+    }
+    return xPos;
+  }
+
+  function renderSegment(segment, xPos, y, bold = false, italic = false, color = null) {
+    // handle nesting: check outermost tags and recurse
+    // Bold
+    if (/^\*\*(.*)\*\*$/.test(segment)) {
+      const inner = segment.replace(/^\*\*(.*)\*\*$/s, "$1");
+      return renderSegment(inner, xPos, y, true, italic, color);
+    }
+    // Italic
+    if (/^_(.*)_$/.test(segment)) {
+      const inner = segment.replace(/^_(.*)_$/s, "$1");
+      return renderSegment(inner, xPos, y, bold, true, color);
+    }
+    // Color
+    if (/^<c>(.*)<\/c>$/.test(segment)) {
+      const inner = segment.replace(/^<c>(.*)<\/c>$/s, "$1");
+      return renderSegment(inner, xPos, y, bold, italic, "#f3d87d");
+    }
+
+    // No outer tags -> may still contain mixed parts; split by highlight regex to preserve keywords
+    // Set font based on bold/italic
+    ctx.font = applyFontStyle(33, bold, italic);
+    ctx.fillStyle = color || "#efeee9";
+
+    // But a segment might still contain inner markers (e.g. "**_a_**") that weren't matched due to greedy patterns.
+    // We'll split by the three patterns to find sub-segments and render them in sequence.
+    const subTokens = segment.split(/(\*\*.*?\*\*|_.*?_|<c>.*?<\/c>)/g).filter(Boolean);
+    for (const sub of subTokens) {
+      // if sub itself is a decorated token, recurse to apply nested styles
+      if (/^\*\*.*\*\*$/.test(sub) || /^_.*_$/.test(sub) || /^<c>.*<\/c>$/.test(sub)) {
+        xPos = renderSegment(sub, xPos, y, bold, italic, color);
+      } else {
+        // plain piece: apply keyword highlighting inside
+        // For keyword highlighting, temporarily override color if keyword matched and no explicit color set
+        const keywordParts = sub.split(HIGHLIGHT_REGEX).filter(Boolean);
+        for (const p of keywordParts) {
+          if (HIGHLIGHT_KEYWORDS.includes(p) && !color) {
+            ctx.fillStyle = "#f3d87d";
+          } else {
+            ctx.fillStyle = color || "#efeee9";
+          }
+          ctx.font = applyFontStyle(33, bold, italic);
+          ctx.fillText(p, xPos, y);
+          xPos += ctx.measureText(p).width;
+        }
+      }
+    }
+    return xPos;
+  }
+
+  // Now iterate wrappedLines and render each line using renderSegment
   for (let i = 0; i < wrappedLines.length; i++) {
     const line = wrappedLines[i];
     let xPos = textStartX;
+
     if (line.includes("----------")) ctx.globalAlpha = 0;
-    const parts = line.split(HIGHLIGHT_REGEX);
-    for (const part of parts) {
-      if (HIGHLIGHT_KEYWORDS.includes(part)) {
-        ctx.font = "bold 33px 'Memento'";
-        ctx.fillStyle = "#f3d87d";
-      } else {
-        ctx.font = "33px 'Memento'";
-        ctx.fillStyle = "#efeee9";
-      }
-      ctx.fillText(part, xPos, textY);
-      xPos += ctx.measureText(part).width;
+
+    // Split the line into tokens of decorated pieces or plain text
+    const tokens = line.split(/(\*\*.*?\*\*|_.*?_|<c>.*?<\/c>)/g).filter(Boolean);
+
+    for (const token of tokens) {
+      xPos = renderSegment(token, xPos, textY);
     }
+
     ctx.globalAlpha = 1;
     if (line.includes("----------")) ctx.drawImage(dividerToUse, x, textY - 10);
     textY += lineHeight;
   }
+
+
   return Math.max(boxHeight, textY - startY + 40);
 }
+
 
 // --- drawCard ---
 async function drawCard() {
@@ -296,12 +364,12 @@ async function drawCard() {
 
   ctx.drawImage(offCanvas, textBoxX, textBoxY);
 
+  ctx.drawImage(gem, 398, 863);
+  ctx.drawImage(frame, 48, 153);
+
   const textBox = await getImage(assets.boxes.text_box);
   const textBoxNoBottom = await getImage(assets.boxes.text_box_no_bottom);
   const illustrator = document.getElementById("illustratorName").value.trim();
-
-  ctx.drawImage(gem, 398, 863);
-  ctx.drawImage(frame, 48, 153);
 
   if (wordCountCheckbox.checked || illustrator)
     ctx.drawImage(textBox, textBoxX, textBoxY);
@@ -354,12 +422,35 @@ async function drawCard() {
       if (nameValue) {
         ctx.save();
         ctx.font = "33px 'Memento'";
-        ctx.fillStyle = "#efeee9";
+        ctx.fillStyle = "#f3d87d";
         ctx.textAlign = "left";
         ctx.shadowColor = "black";
         ctx.shadowBlur = 4;
         ctx.fillText(nameValue, iconX + ICON_W + 17, iconY + ICON_H / 2 + 10);
         ctx.restore();
+      } 
+      else {
+        if (isCrest){
+          ctx.save();
+          ctx.font = "33px 'Memento'";
+          ctx.fillStyle = "#f3d87d";
+          ctx.textAlign = "left";
+          ctx.shadowColor = "black";
+          ctx.shadowBlur = 4;
+          ctx.fillText("Crest", iconX + ICON_W + 17, iconY + ICON_H / 2 + 10);
+          ctx.restore();
+        }
+        else 
+          if (isFaith){
+           ctx.save();
+          ctx.font = "33px 'Memento'";
+          ctx.fillStyle = "#f3d87d";
+          ctx.textAlign = "left";
+          ctx.shadowColor = "black";
+          ctx.shadowBlur = 4;
+          ctx.fillText("Faith", iconX + ICON_W + 17, iconY + ICON_H / 2 + 10);
+          ctx.restore();
+        }
       }
     }
 
@@ -371,7 +462,6 @@ async function drawCard() {
   ctx.shadowColor = "black";
   ctx.shadowBlur = 6;
   ctx.fillStyle = "#efeee9";
-
   ctx.font = "56px 'Memento'";
   ctx.textAlign = "left";
   const nameText = nameInput.value.trim() || "Unnamed Card";
@@ -380,18 +470,25 @@ async function drawCard() {
   let secondaryFontSize = 42;
   ctx.font = `${secondaryFontSize}px 'Memento'`;
   let textWidth = ctx.measureText(nameText).width;
-  while (textWidth > 363 && secondaryFontSize > 24) {
+  const maxWidth = 363;
+  const baseY = 331; // default position
+  const offsetPerStep = -0.75; // how much lower it moves per shrink step
+  let shrinkSteps = 0;
+  while (textWidth > maxWidth && secondaryFontSize > 2) {
     secondaryFontSize -= 2;
+    shrinkSteps++;
     ctx.font = `${secondaryFontSize}px 'Memento'`;
     textWidth = ctx.measureText(nameText).width;
   }
-
+  const secondaryNameY = baseY + (shrinkSteps * offsetPerStep);
   ctx.textAlign = "center";
-  ctx.fillText(nameText, 455, 331);
+  ctx.fillText(nameText, 455, secondaryNameY);
 
   ctx.font = "33px 'Memento'";
   ctx.textAlign = "left";
-  ctx.fillText(traitInput.value.trim(), 1306, 147);
+  const traitText = traitInput.value.trim() || "—";
+  ctx.fillText(traitText, 1306, 147);
+
   ctx.font = "80px 'Sv_numbers'";
   ctx.textAlign = "center";
   ctx.fillText(costInput.value, 198, 335);
@@ -741,30 +838,67 @@ attachPanAndZoom(mainPreviewCanvas, previewState.main, mainZoomSlider);
 attachPanAndZoom(crestPreviewCanvas, previewState.crest, crestZoomSlider);
 attachPanAndZoom(faithPreviewCanvas, previewState.faith, faithZoomSlider);
 
+// --- Text Formatting Toolbar (Bold / Italic / Color) ---
+// --- Toolbar: Bold / Italic / Color (uses ** / _ / <c> tags) ---
+document.querySelectorAll(".text-toolbar button").forEach((button) => {
+  button.addEventListener("click", (e) => {
+    e.preventDefault();
+    const format = button.dataset.format;
+    const field = button.closest(".field");
+    if (!field) return;
+    const textarea = field.querySelector("textarea");
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const value = textarea.value;
+    const selected = value.slice(start, end);
+
+    let openTag = "", closeTag = "";
+    if (format === "bold") { openTag = "**"; closeTag = "**"; }
+    else if (format === "italic") { openTag = "_"; closeTag = "_"; }
+    else if (format === "color") { openTag = "<c>"; closeTag = "</c>"; }
+    else return;
+
+    // If text selected -> wrap (toggle removal if already wrapped exactly)
+    if (start !== end) {
+      const before = value.slice(0, start);
+      const after = value.slice(end);
+      const currentlyWrapped = before.endsWith(openTag) && after.startsWith(closeTag);
+      if (currentlyWrapped) {
+        // remove wrapping
+        const newBefore = before.slice(0, before.length - openTag.length);
+        const newAfter = after.slice(closeTag.length);
+        textarea.value = newBefore + selected + newAfter;
+        textarea.setSelectionRange(newBefore.length, newBefore.length + selected.length);
+      } else {
+        // wrap (nesting is allowed)
+        textarea.value = before + openTag + selected + closeTag + after;
+        // select the inner text (optional); place caret after wrapped text
+        textarea.setSelectionRange(start + openTag.length, end + openTag.length);
+      }
+      textarea.focus();
+      textarea.dispatchEvent(new Event("input"));
+      return;
+    }
+
+    // No selection -> insert open+close and position caret between them
+    const before = value.slice(0, start);
+    const after = value.slice(start);
+    textarea.value = before + openTag + closeTag + after;
+    const caret = before.length + openTag.length;
+    textarea.setSelectionRange(caret, caret);
+    textarea.focus();
+    textarea.dispatchEvent(new Event("input"));
+  });
+});
+
+
+
+
+
 // initial draw
 document.fonts.ready.then(() => setTimeout(updateAll, 60));
-
-// --- Ensure Crest/Faith upload buttons toggle correctly ---
-window.addEventListener("DOMContentLoaded", () => {
-  const crestText = document.getElementById("crestText");
-  const crestBtn = document.getElementById("crestUploadBtn");
-  const faithText = document.getElementById("faithText");
-  const faithBtn = document.getElementById("faithUploadBtn");
-
-  function toggleBtn(textEl, btnEl) {
-    if (!textEl || !btnEl) return;
-    btnEl.style.display = textEl.value.trim() ? "inline-block" : "none";
-  }
-
-  if (crestText && crestBtn) {
-    crestText.addEventListener("input", () => toggleBtn(crestText, crestBtn));
-    toggleBtn(crestText, crestBtn);
-  }
-  if (faithText && faithBtn) {
-    faithText.addEventListener("input", () => toggleBtn(faithText, faithBtn));
-    toggleBtn(faithText, faithBtn);
-  }
-});
 
 /* === High-Quality Download (Lossless PNG) === */
 document.getElementById("downloadBtn").addEventListener("click", () => {
