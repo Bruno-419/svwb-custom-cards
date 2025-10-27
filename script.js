@@ -116,8 +116,10 @@ Object.values(textInputs).forEach((textarea) => {
 function toggleIconUploads() {
   const crestHasText = textInputs.crest.value.trim() !== "";
   const faithHasText = textInputs.faith.value.trim() !== "";
-  crestArtUpload.style.display = crestHasText ? "block" : "none";
-  faithArtUpload.style.display = faithHasText ? "block" : "none";
+  const crestBtn = document.getElementById("crestUploadBtn");
+  const faithBtn = document.getElementById("faithUploadBtn");
+  if (crestBtn) crestBtn.style.display = crestHasText ? "inline-block" : "none";
+  if (faithBtn) faithBtn.style.display = faithHasText ? "inline-block" : "none";
 }
 textInputs.crest.addEventListener("input", toggleIconUploads);
 textInputs.faith.addEventListener("input", toggleIconUploads);
@@ -256,10 +258,10 @@ async function drawCard() {
 
   // === Masked Main Art ===
   if (uploadedArt) {
-    const maskX = 200;
-    const maskY = 350;
-    const maskW = 450;
-    const maskH = 560;
+    const maskX = MAIN_ART_X;
+    const maskY = MAIN_ART_Y;
+    const maskW = MAIN_MASK_W;
+    const maskH = MAIN_MASK_H;
 
     ctx.save();
     ctx.beginPath();
@@ -271,6 +273,7 @@ async function drawCard() {
 
     ctx.restore();
   }
+
   // === RE-ADD BLURRED BACKGROUND PATCH ===
   const textBoxX = 722;
   const textBoxY = 206;
@@ -282,18 +285,15 @@ async function drawCard() {
   offCanvas.height = textBoxH;
   const offCtx = offCanvas.getContext("2d");
 
-  // Copy the background region
   offCtx.drawImage(
     bg,
     textBoxX, textBoxY, textBoxW, textBoxH,
     0, 0, textBoxW, textBoxH
   );
 
-  // Apply blur
   offCtx.filter = "blur(5px)";
   offCtx.drawImage(offCanvas, 0, 0);
 
-  // Draw blurred area onto main canvas
   ctx.drawImage(offCanvas, textBoxX, textBoxY);
 
   const textBox = await getImage(assets.boxes.text_box);
@@ -320,39 +320,66 @@ async function drawCard() {
   for (const { key, box } of textOrder) {
     if (!textInputs[key].value.trim()) continue;
     const blockHeight = await drawTextBlock(key, box, boxX, currentY);
-    if (key === "crest" && crestArt) {
-      const x = boxX + 120, y = currentY + 22;
-      ctx.save(); ctx.beginPath();
-      ctx.arc(x + ICON_W / 2, y + ICON_H / 2, ICON_W / 2, 0, Math.PI * 2);
-      ctx.clip(); ctx.drawImage(crestArt, x, y, ICON_W, ICON_H);
-      ctx.restore();
+
+    // Shared logic for crest and faith
+    const isCrest = key === "crest";
+    const isFaith = key === "faith";
+    if (isCrest || isFaith) {
+      const t = getIconTransform(isCrest ? "crest" : "faith");
+      const iconX = boxX + 120;
+      const iconY = currentY + 32;
+      const iconImg = isCrest ? crestArt : faithArt;
+      const nameField = document.getElementById(isCrest ? "crestName" : "faithName");
+      const nameValue = nameField ? nameField.value.trim() : "";
+
+      // ✅ Draw circular icon if it exists
+      if (iconImg && t) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(iconX + ICON_W / 2, iconY + ICON_H / 2, ICON_W / 2, 0, Math.PI * 2);
+        ctx.closePath();
+        ctx.clip();
+
+        ctx.drawImage(
+          t.img,
+          iconX + t.tx,
+          iconY + t.ty,
+          t.img.width * t.scale,
+          t.img.height * t.scale
+        );
+        ctx.restore();
+      }
+
+      // ✅ Always draw text if there's any (even without art)
+      if (nameValue) {
+        ctx.save();
+        ctx.font = "33px 'Memento'";
+        ctx.fillStyle = "#efeee9";
+        ctx.textAlign = "left";
+        ctx.shadowColor = "black";
+        ctx.shadowBlur = 4;
+        ctx.fillText(nameValue, iconX + ICON_W + 17, iconY + ICON_H / 2 + 10);
+        ctx.restore();
+      }
     }
-    if (key === "faith" && faithArt) {
-      const x = boxX + 120, y = currentY + 27;
-      ctx.save(); ctx.beginPath();
-      ctx.arc(x + ICON_W / 2, y + ICON_H / 2, ICON_W / 2, 0, Math.PI * 2);
-      ctx.clip(); ctx.drawImage(faithArt, x, y, ICON_W, ICON_H);
-      ctx.restore();
-    }
+
     currentY += blockHeight - 50;
   }
+
+
 
   ctx.shadowColor = "black";
   ctx.shadowBlur = 6;
   ctx.fillStyle = "#efeee9";
 
-  // --- Primary name (top left) ---
   ctx.font = "56px 'Memento'";
   ctx.textAlign = "left";
   const nameText = nameInput.value.trim() || "Unnamed Card";
   ctx.fillText(nameText, 163, 150);
 
-  // --- Secondary name (centered) ---
   let secondaryFontSize = 42;
   ctx.font = `${secondaryFontSize}px 'Memento'`;
   let textWidth = ctx.measureText(nameText).width;
-
-  // dynamically shrink if too long
   while (textWidth > 363 && secondaryFontSize > 24) {
     secondaryFontSize -= 2;
     ctx.font = `${secondaryFontSize}px 'Memento'`;
@@ -396,9 +423,12 @@ async function drawCard() {
 // --- Live updates ---
 [
   nameInput, traitInput, classSelect, raritySelect, costInput, attackInput, defenseInput,
-  tokenCheckbox, wordCountCheckbox, ...Object.values(textInputs),
-  document.getElementById("illustratorName")
-].forEach(el => el.addEventListener("input", () => safeDrawCard()));
+  tokenCheckbox, wordCountCheckbox,
+  ...Object.values(textInputs),
+  document.getElementById("illustratorName"),
+  document.getElementById("crestName"),
+  document.getElementById("faithName")
+].forEach(el => el?.addEventListener("input", () => safeDrawCard()));
 
 // --- Prevent overlapping draws ---
 let isDrawing = false;
@@ -459,7 +489,6 @@ function clampPan(s) {
   const imgW = s.img.width * s.scale;
   const imgH = s.img.height * s.scale;
   if (imgW <= s.maskW) {
-    // center horizontally
     s.tx = (s.maskW - imgW) / 2;
   } else {
     const minX = s.maskW - imgW;
@@ -468,7 +497,6 @@ function clampPan(s) {
     if (s.tx > maxX) s.tx = maxX;
   }
   if (imgH <= s.maskH) {
-    // center vertically
     s.ty = (s.maskH - imgH) / 2;
   } else {
     const minY = s.maskH - imgH;
@@ -551,26 +579,34 @@ function syncIconToGlobals(which) {
   }
   if (which === "crest") crestArt = s.img;
   else faithArt = s.img;
-  // update global icon sizes to mask size
   window.ICON_W = s.maskW;
   window.ICON_H = s.maskH;
 }
 
+function getIconTransform(which) {
+  const s = previewState[which];
+  if (!s || !s.img) return null;
+  return {
+    img: s.img,
+    scale: s.scale,
+    tx: s.tx,
+    ty: s.ty,
+    width: s.img.width * s.scale,
+    height: s.img.height * s.scale
+  };
+}
+
 function updateAll() {
-  // clamp pans first
   clampPan(previewState.main);
   clampPan(previewState.crest);
   clampPan(previewState.faith);
 
-  // sync to globals
   syncMainToGlobals();
   syncIconToGlobals("crest");
   syncIconToGlobals("faith");
 
-  // redraw card (serialized)
   safeDrawCard();
 
-  // redraw previews
   drawPreviewCanvas(mainPreviewCtx, mainPreviewCanvas, previewState.main, "rect");
   drawPreviewCanvas(crestPreviewCtx, crestPreviewCanvas, previewState.crest, "circle");
   drawPreviewCanvas(faithPreviewCtx, faithPreviewCanvas, previewState.faith, "circle");
@@ -670,7 +706,6 @@ function attachPanAndZoom(canvasEl, state, sliderEl) {
     const delta = ev.deltaY > 0 ? -0.05 : 0.05;
     const oldScale = state.scale;
     const newScale = Math.max(0.1, state.scale + delta);
-    // zoom around pointer
     const rect = canvasEl.getBoundingClientRect();
     const cx = ev.clientX - rect.left;
     const cy = ev.clientY - rect.top;
@@ -690,7 +725,6 @@ function attachPanAndZoom(canvasEl, state, sliderEl) {
       if (!state.img) return;
       const newScale = parseFloat(ev.target.value);
       const oldScale = state.scale;
-      // keep center stable
       const cx = state.maskW / 2, cy = state.maskH / 2;
       const imgSpaceX = (cx - state.tx) / oldScale;
       const imgSpaceY = (cy - state.ty) / oldScale;
@@ -729,5 +763,19 @@ window.addEventListener("DOMContentLoaded", () => {
   if (faithText && faithBtn) {
     faithText.addEventListener("input", () => toggleBtn(faithText, faithBtn));
     toggleBtn(faithText, faithBtn);
+  }
+});
+
+/* === High-Quality Download (Lossless PNG) === */
+document.getElementById("downloadBtn").addEventListener("click", () => {
+  try {
+    const canvas = document.getElementById("previewCanvas");
+    const link = document.createElement("a");
+    link.download = `${(nameInput.value.trim() || "card")}.png`;
+    link.href = canvas.toDataURL("image/png", 1.0); // full quality, no compression
+    link.click();
+  } catch (err) {
+    console.error("Download failed:", err);
+    alert("Error: Could not save image. Try again.");
   }
 });
