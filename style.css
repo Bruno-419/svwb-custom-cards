@@ -651,3 +651,36 @@ canvas { max-width: 100%; height: auto; border-radius: 8px; border: 2px solid #4
   margin-top: 4px;
   margin-bottom: 4px;
 }
+
+/* === Always show crest/faith upload buttons === */
+#crestUploadBtn,
+#faithUploadBtn {
+  display: inline-flex !important;  /* always visible */
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* === Text formatting toolbar === */
+.text-toolbar {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.text-toolbar button {
+  background: #222;
+  border: 1px solid #444;
+  color: #ddd;
+  font-weight: bold;
+  font-size: 13px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transform: translateX(+20px); /* pull preview slightly left */
+  transform: translateY(-5px); /* pull preview slightly left */
+}
+
+.text-toolbar button:hover {
+  background: #333;
+  color: #fff;
+}
