@@ -240,38 +240,8 @@
     toggleStatsVisibility();
     cardTypeSelect.addEventListener('change', toggleStatsVisibility);
   </script>
-  <script>
-    // --- Download button functionality ---
-    (function () {
-      const downloadBtn = document.getElementById('downloadBtn');
-      const canvas = document.getElementById('previewCanvas');
 
-      if (!downloadBtn || !canvas) return;
-
-      downloadBtn.addEventListener('click', () => {
-        // Use toBlob when available
-        if (canvas.toBlob) {
-          canvas.toBlob((blob) => {
-            if (!blob) return;
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.download = 'shadowverse_card.png';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            setTimeout(() => URL.revokeObjectURL(link.href), 1500);
-          }, 'image/png');
-        } else {
-          // Fallback for older browsers
-          const url = canvas.toDataURL('image/png');
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = 'shadowverse_card.png';
-          a.click();
-        }
-      });
-    })();
-  </script>
 
 </body>
 </html>
+
