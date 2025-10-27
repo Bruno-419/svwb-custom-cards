@@ -87,10 +87,10 @@
         <label class="field">
           <span class="field-label">Rarity</span>
           <select id="cardRarity">
-            <option>Bronze</option>
-            <option>Silver</option>
-            <option>Gold</option>
             <option>Legendary</option>
+            <option>Gold</option>
+            <option>Silver</option>
+            <option>Bronze</option>
           </select>
         </label>
 
@@ -126,17 +126,32 @@
       <!-- RIGHT PANEL -->
       <section class="right-panel">
         <label class="field">
-          <span class="field-label">Card Text</span>
+          <div class="text-toolbar">
+            <span class="field-label">Card Text</span>
+            <button type="button" data-format="bold">B</button>
+            <button type="button" data-format="italic">I</button>
+            <button type="button" data-format="color">Gold</button>
+          </div>
           <textarea id="cardText"></textarea>
         </label>
 
         <label class="field">
-          <span class="field-label">Evolve Text</span>
+          <div class="text-toolbar">
+            <span class="field-label">Evolve Text</span>
+            <button type="button" data-format="bold">B</button>
+            <button type="button" data-format="italic">I</button>
+            <button type="button" data-format="color">Gold</button>
+          </div>
           <textarea id="evolveText"></textarea>
         </label>
 
         <label class="field">
-          <span class="field-label">Super-Evolve Text</span>
+          <div class="text-toolbar">
+            <span class="field-label">Super-Evolve Text</span>
+            <button type="button" data-format="bold">B</button>
+            <button type="button" data-format="italic">I</button>
+            <button type="button" data-format="color">Gold</button>
+          </div>
           <textarea id="superEvolveText"></textarea>
         </label>
 
@@ -160,7 +175,12 @@
           </label>
 
           <label class="field">
-            <span class="field-label">Crest Text</span>
+            <div class="text-toolbar">
+              <span class="field-label">Crest Text</span>
+              <button type="button" data-format="bold">B</button>
+              <button type="button" data-format="italic">I</button>
+              <button type="button" data-format="color">Gold</button>
+            </div>
             <textarea id="crestText"></textarea>
           </label>
         </div>
@@ -185,7 +205,12 @@
           </label>
 
           <label class="field">
-            <span class="field-label">Faith Text</span>
+            <div class="text-toolbar">
+              <span class="field-label">Faith Text</span>
+              <button type="button" data-format="bold">B</button>
+              <button type="button" data-format="italic">I</button>
+              <button type="button" data-format="color">Gold</button>
+            </div>
             <textarea id="faithText"></textarea>
           </label>
         </div>
@@ -215,5 +240,38 @@
     toggleStatsVisibility();
     cardTypeSelect.addEventListener('change', toggleStatsVisibility);
   </script>
+  <script>
+    // --- Download button functionality ---
+    (function () {
+      const downloadBtn = document.getElementById('downloadBtn');
+      const canvas = document.getElementById('previewCanvas');
+
+      if (!downloadBtn || !canvas) return;
+
+      downloadBtn.addEventListener('click', () => {
+        // Use toBlob when available
+        if (canvas.toBlob) {
+          canvas.toBlob((blob) => {
+            if (!blob) return;
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'shadowverse_card.png';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            setTimeout(() => URL.revokeObjectURL(link.href), 1500);
+          }, 'image/png');
+        } else {
+          // Fallback for older browsers
+          const url = canvas.toDataURL('image/png');
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'shadowverse_card.png';
+          a.click();
+        }
+      });
+    })();
+  </script>
+
 </body>
 </html>
