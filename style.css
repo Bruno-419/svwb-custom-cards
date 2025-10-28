@@ -357,6 +357,66 @@ canvas { max-width: 100%; height: auto; border-radius: 8px; border: 2px solid #4
   background: #fff;
 }
 
+
+
+/*——————COLOR THINGS———————— */
+/*——————COLOR THINGS———————— */
+/*——————COLOR THINGS———————— */
+
+#cardName {
+  position: relative;
+  border-left: 6px solid #20B2AA; 
+  padding-left: 10px; 
+  box-shadow: inset 0 0 0 1px rgba(0, 255, 183, 0.15); 
+  border-top-left-radius: 6px;
+  border-bottom-left-radius: 6px;
+}
+
+#cardTrait {
+  position: relative;
+  border-left: 6px solid #20B2AA; 
+  padding-left: 10px; 
+  box-shadow: inset 0 0 0 1px rgba(0, 255, 183, 0.15); 
+  border-top-left-radius: 6px;
+  border-bottom-left-radius: 6px;
+}
+
+#illustratorName {
+  position: relative;
+  border-left: 6px solid #20B2AA; 
+  padding-left: 10px; 
+  box-shadow: inset 0 0 0 1px rgba(0, 255, 183, 0.15); 
+  border-top-left-radius: 6px;
+  border-bottom-left-radius: 6px;
+}
+
+#costValue {
+  position: relative;
+  border-left: 6px solid #3CB371; 
+  padding-left: 10px; 
+  box-shadow: inset 0 0 0 1px rgba(0, 255, 38, 0.15); 
+  border-top-left-radius: 6px;
+  border-bottom-left-radius: 6px;
+}
+
+#attackValue {
+  position: relative;
+  border-left: 6px solid #1E90FF;
+  padding-left: 10px; 
+  box-shadow: inset 0 0 0 1px rgba(0, 145, 255, 0.15); 
+  border-top-left-radius: 6px;
+  border-bottom-left-radius: 6px;
+}
+
+#defenseValue {
+  position: relative;
+  border-left: 6px solid #DC143C; 
+  padding-left: 10px; 
+  box-shadow: inset 0 0 0 1px rgba(255, 0, 0, 0.15); 
+  border-top-left-radius: 6px;
+  border-bottom-left-radius: 6px;
+}
+
 /* Gold adornment for Evolve Text */
 #evolveText {
   position: relative;
@@ -370,7 +430,7 @@ canvas { max-width: 100%; height: auto; border-radius: 8px; border: 2px solid #4
 /* Purple adornment for Super-Evolve Text */
 #superEvolveText {
   position: relative;
-  border-left: 6px solid #a529d6; /* purple border */
+  border-left: 6px solid #8229d6; /* purple border */
   padding-left: 10px; /* space so text doesn't touch border */
   box-shadow: inset 0 0 0 1px rgba(255, 0, 255, 0.15); /* subtle glow */
   border-top-left-radius: 6px;
@@ -405,7 +465,7 @@ canvas { max-width: 100%; height: auto; border-radius: 8px; border: 2px solid #4
 .adorned-crest {
   position: relative;
   padding: 14px 16px;
-  border-left: 6px solid #bcbcbc; /* Orange border */
+  border-left: 6px solid #bcbcbc; /* White border */
   background: #1c1c1c;
   border-radius: 8px;
   box-shadow: inset 0 0 0 1px rgba(147, 143, 139, 0.2);
@@ -424,6 +484,7 @@ canvas { max-width: 100%; height: auto; border-radius: 8px; border: 2px solid #4
   flex-direction: column;
   align-items: center;
 }
+
 
 
 /* --------------------------
@@ -684,3 +745,4 @@ canvas { max-width: 100%; height: auto; border-radius: 8px; border: 2px solid #4
   background: #333;
   color: #fff;
 }
+
