@@ -81,6 +81,39 @@ let uploadedArt = null;
 let crestArt = null;
 let faithArt = null;
 
+/**
+ * Draws a number, scaling down the font size to fit a max width.
+ * @param {string} text - The number to draw (e.g., "100").
+ * @param {number} x - The center x-coordinate.
+ * @param {number} y - The baseline y-coordinate.
+ * @param {number} maxFontSize - The font size to start at (e.g., 80).
+ * @param {number} maxWidth - The maximum pixel width before shrinking.
+ * @param {string} fontFace - The font family (e.g., 'Sv_numbers').
+ * @param {number} letterSpacing - The letter spacing to apply.
+ * @param {number} yNudgeCoefficient - The factor used to calculate the vertical correction (e.g., 0.4).
+ */
+function drawScaledNumber(text, x, y, maxFontSize, maxWidth, fontFace, letterSpacing = 0, yNudgeCoefficient) {
+  ctx.textAlign = "center";
+  ctx.letterSpacing = `${letterSpacing}px`; // Apply your letter spacing
+
+  let fontSize = maxFontSize;
+  ctx.font = `${fontSize}px '${fontFace}'`;
+  let textWidth = ctx.measureText(text).width;
+
+  // This loop shrinks the font size until the text fits
+  while (textWidth > maxWidth && fontSize > 10) { // 10px is a safe minimum
+    fontSize -= 2; // Shrink by 2px
+    ctx.font = `${fontSize}px '${fontFace}'`;
+    textWidth = ctx.measureText(text).width;
+  }
+
+  const yNudge = (maxFontSize - fontSize) * yNudgeCoefficient;
+
+  ctx.fillText(text, x, y + yNudge);
+
+  ctx.letterSpacing = "0px";
+}
+
 // --- Helpers ---
 function loadImage(src) {
   return new Promise((res, rej) => {
@@ -217,23 +250,6 @@ async function drawTextBlock(key, box, x, startY) {
     return `${weight}${style}${baseSize}px 'Memento'`;
   }
 
-  function renderPlainTextPiece(piece, xPos, y) {
-    // handle keyword highlighting on plain pieces
-    const parts = piece.split(HIGHLIGHT_REGEX).filter(Boolean);
-    for (const part of parts) {
-      if (HIGHLIGHT_KEYWORDS.includes(part)) {
-        ctx.font = applyFontStyle(33, false, false);
-        ctx.fillStyle = "#f3d87d";
-      } else {
-        ctx.font = applyFontStyle(33, false, false);
-        ctx.fillStyle = "#efeee9";
-      }
-      ctx.fillText(part, xPos, y);
-      xPos += ctx.measureText(part).width;
-    }
-    return xPos;
-  }
-
   function renderSegment(segment, xPos, y, bold = false, italic = false, color = null) {
     // handle nesting: check outermost tags and recurse
     // Bold
@@ -252,13 +268,7 @@ async function drawTextBlock(key, box, x, startY) {
       return renderSegment(inner, xPos, y, bold, italic, "#f3d87d");
     }
 
-    // No outer tags -> may still contain mixed parts; split by highlight regex to preserve keywords
-    // Set font based on bold/italic
-    ctx.font = applyFontStyle(33, bold, italic);
-    ctx.fillStyle = color || "#efeee9";
-
-    // But a segment might still contain inner markers (e.g. "**_a_**") that weren't matched due to greedy patterns.
-    // We'll split by the three patterns to find sub-segments and render them in sequence.
+    // Set font based on bold/italic/color for the current segment level
     const subTokens = segment.split(/(\*\*.*?\*\*|_.*?_|<c>.*?<\/c>)/g).filter(Boolean);
     for (const sub of subTokens) {
       // if sub itself is a decorated token, recurse to apply nested styles
@@ -269,17 +279,25 @@ async function drawTextBlock(key, box, x, startY) {
         // For keyword highlighting, temporarily override color if keyword matched and no explicit color set
         const keywordParts = sub.split(HIGHLIGHT_REGEX).filter(Boolean);
         for (const p of keywordParts) {
-          if (HIGHLIGHT_KEYWORDS.includes(p) && !color) {
-            ctx.fillStyle = "#f3d87d";
-          } else {
-            ctx.fillStyle = color || "#efeee9";
-          }
-          ctx.font = applyFontStyle(33, bold, italic);
-          ctx.fillText(p, xPos, y);
-          xPos += ctx.measureText(p).width;
-        }
-      }
-    }
+          const isKeyword = HIGHLIGHT_KEYWORDS.includes(p);
+                    
+                    // --- FIX: Apply BOLD if it's a keyword, or if the segment is already bold ---
+                    const currentBold = bold || isKeyword;
+
+                    // Apply highlight color if it's a keyword AND not explicitly colored by <c> tag
+                    if (isKeyword && !color) {
+                      ctx.fillStyle = "#f3d87d";
+                    } else {
+                      // Otherwise, use the inherited color or default text color
+                      ctx.fillStyle = color || "#efeee9";
+                    }
+                    
+                    ctx.font = applyFontStyle(33, currentBold, italic);
+                    ctx.fillText(p, xPos, y);
+                    xPos += ctx.measureText(p).width;
+                  }
+                }
+              }
     return xPos;
   }
 
@@ -489,14 +507,52 @@ async function drawCard() {
   const traitText = traitInput.value.trim() || "—";
   ctx.fillText(traitText, 1306, 147);
 
-  ctx.font = "80px 'Sv_numbers'";
-  ctx.textAlign = "center";
-  ctx.fillText(costInput.value, 198, 335);
+  // --- This is your NEW code ---
+  const numberSpacing = -5; // Your letter-spacing value
+  const numberFont = 'Sv_numbers';
+  // --- You can TWEAK these max widths ---
+  const costMaxWidth = 95;  // Max width for the Cost circle
+  const statMaxWidth = 90;  // Max width for the Atk/Def circles
+  // --- NEW: Define specific nudge coefficients ---
+  const COST_NUDGE = -0.2;  // Good starting point for 80px font
+  const STAT_NUDGE = -0.2;  // Slightly higher for 82px font
+
+  // Draw Cost
+  drawScaledNumber(
+    costInput.value,
+    197, 335,      // X, Y coordinates
+    80,             // Max font size
+    costMaxWidth,   // Max width
+    numberFont,
+    numberSpacing,
+    COST_NUDGE      // <-- PASSING NEW PARAMETER
+  );
+
+  // Draw Atk/Def
   if (typeSelect.value === "Follower") {
-    ctx.font = "82px 'Sv_numbers'";
-    ctx.fillText(attackInput.value, 203, 920);
-    ctx.fillText(defenseInput.value, 645, 920);
+    // Attack
+    drawScaledNumber(
+      attackInput.value,
+      201, 922,      // X, Y coordinates
+      82,             // Max font size
+      statMaxWidth,   // Max width
+      numberFont,
+      numberSpacing,
+      STAT_NUDGE      // <-- PASSING NEW PARAMETER
+    );
+    // Defense
+    drawScaledNumber(
+      defenseInput.value,
+      642, 917,      // X, Y coordinates
+      82,             // Max font size
+      statMaxWidth,   // Max width
+      numberFont,
+      numberSpacing,
+      STAT_NUDGE      // <-- PASSING NEW PARAMETER
+    );
   }
+  ctx.letterSpacing = "0px"; // Reset for all other text!
+
   if (tokenCheckbox.checked) {
     ctx.font = "28px 'NotoSans'";
     ctx.textAlign = "right";
