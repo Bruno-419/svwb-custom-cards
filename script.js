@@ -324,6 +324,13 @@ async function drawTextBlock(key, box, x, startY) {
     if (xPos === textStartX && token.trim() === "") continue;
 
     ctx.fillText(token, xPos, textY);
+    
+    // ⬅️ NEW CODE: Manually force boldness by drawing a second stroke.
+    if (wetStyle.bold) {
+        ctx.fillText(token, xPos + 1, textY); // Draw 1px right
+    }
+    // -----------------------------------------------------------------
+
     xPos += tokenWidth;
     if (wetStyle.italic) xPos += 0;
   }
@@ -985,6 +992,7 @@ document.getElementById("downloadBtn").addEventListener("click", () => {
     alert("Error: Could not save image. Try again.");
   }
 });
+
 
 
 
