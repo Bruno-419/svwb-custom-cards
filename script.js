@@ -325,7 +325,7 @@ async function drawTextBlock(key, box, x, startY) {
 
     ctx.fillText(token, xPos, textY);
     xPos += tokenWidth;
-    if (wetStyle.italic) xPos += 3;
+    if (wetStyle.italic) xPos += 0;
   }
   
   return Math.max(boxHeight, textY - startY + 40);
@@ -984,3 +984,4 @@ document.getElementById("downloadBtn").addEventListener("click", () => {
     alert("Error: Could not save image. Try again.");
   }
 });
+
