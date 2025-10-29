@@ -746,3 +746,21 @@ canvas { max-width: 100%; height: auto; border-radius: 8px; border: 2px solid #4
   color: #fff;
 }
 
+
+/* New CSS: Prevents touch-scrolling the main page when manipulating the art canvas */
+
+/* Target the main card art preview canvas */
+#mainPreviewCanvas {
+  touch-action: none; 
+}
+
+/* Target the Crest and Faith art preview canvases */
+#crestPreviewCanvas,
+#faithPreviewCanvas {
+  touch-action: none; 
+}
+
+/* Target the zoom sliders */
+.zoom-slider {
+  touch-action: none;
+}
