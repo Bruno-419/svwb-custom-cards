@@ -909,10 +909,21 @@ attachPanAndZoom(mainPreviewCanvas, previewState.main, mainZoomSlider);
 attachPanAndZoom(crestPreviewCanvas, previewState.crest, crestZoomSlider);
 attachPanAndZoom(faithPreviewCanvas, previewState.faith, faithZoomSlider);
 
+
+// === NEW CODE FOR MOBILE KEYWORD BOLD FIX ===
+// Add a 'change' listener to supplement 'input' listeners on mobile,
+// ensuring updateAll runs when text is pasted or committed.
+document.getElementById("cardText").addEventListener("change", updateAll);
+document.getElementById("evolveText").addEventListener("change", updateAll);
+document.getElementById("superEvolveText").addEventListener("change", updateAll);
+document.getElementById("crestText").addEventListener("change", updateAll);
+document.getElementById("faithText").addEventListener("change", updateAll);
+
+
 // --- Text Formatting Toolbar (Bold / Italic / Color) ---
 // --- Toolbar: Bold / Italic / Color (uses ** / _ / <c> tags) ---
 document.querySelectorAll(".text-toolbar button").forEach((button) => {
-  button.addEventListener("click", (e) => {
+  button.addEventListener("mousedown", (e) => {
     e.preventDefault();
     const format = button.dataset.format;
     const field = button.closest(".field");
@@ -984,4 +995,5 @@ document.getElementById("downloadBtn").addEventListener("click", () => {
     alert("Error: Could not save image. Try again.");
   }
 });
+
 
