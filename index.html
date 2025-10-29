@@ -17,24 +17,6 @@
 
     * { font-family: 'Roboto', sans-serif; box-sizing: border-box; }
   </style>
-
-  <script>
-    // 1. Define the CSS for the Bold fonts
-    const mobileFontCSS = `
-      /* Load only on mobile to enable reliable Canvas bolding */
-      @font-face { font-family: 'Memento'; font-weight: bold; src: url('font/Memento-SemiBold.ttf') format('truetype'); }
-    `;
-
-    // 2. Check if the device is likely mobile (screen width <= 980px)
-    if (window.matchMedia("(max-width: 980px)").matches) {
-      // 3. If it's mobile, create a new style element
-      const style = document.createElement('style');
-      style.textContent = mobileFontCSS;
-      
-      // 4. Insert the style rules into the document head
-      document.head.appendChild(style);
-    }
-  </script>
   
   <style>
     /* NEW ADDED CODE: Definitive Fix for Mobile Panning */
@@ -278,6 +260,7 @@
 
 </body>
 </html>
+
 
 
 
