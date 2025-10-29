@@ -17,6 +17,20 @@
 
     * { font-family: 'Roboto', sans-serif; box-sizing: border-box; }
   </style>
+  <style>
+    /* NEW ADDED CODE: Definitive Fix for Mobile Panning */
+    
+    /* Prevents screen scrolling/panning when touching/dragging the main art preview block */
+    .preview-block {
+      touch-action: none; 
+    }
+  
+    /* Prevents screen scrolling/panning when touching/dragging the smaller crest/faith art containers */
+    .crest-art-container,
+    .faith-art-container {
+      touch-action: none;
+    }
+  </style>
 </head>
 <body>
   <header>
@@ -245,6 +259,7 @@
 
 </body>
 </html>
+
 
 
 
