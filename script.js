@@ -193,134 +193,141 @@ async function drawTextBlock(key, box, x, startY) {
   const textValue = textInputs[key].value.trim();
   if (!textValue) return 0;
 
+  // --- Common setup ---
   ctx.shadowColor = "transparent";
   ctx.shadowBlur = 0;
-
-  const boxImg = box ? await getImage(assets.boxes[box]) : null;
-  const stretchable = ["card", "evolve", "superEvolve", "crest", "faith"];
-
-  const wrapLimitX = 1716;
   const textStartX = x + 30;
-  const maxLineWidthPx = Math.max(0, wrapLimitX - textStartX);
+  const wrapLimitX = 1716;
   const lineHeight = 50;
+  const baseFont = "33px 'Memento'";
 
-  // font baseline
-  ctx.font = "33px 'Memento'";
-  const lines = textValue.split("\n");
+  // --- Pre-process text to wrap keywords in special tags for easier tokenizing ---
+  const processedText = textValue.replace(HIGHLIGHT_REGEX, "<K>$&</K>");
 
-  const wrappedLines = [];
-  for (const rawLine of lines) {
-    const words = rawLine.split(/\s+/).filter(Boolean);
-    let line = "";
-    for (const word of words) {
-      const testLine = line ? `${line} ${word}` : word;
-      const testWidth = ctx.measureText(testLine.replace(/\*\*|_|<c>|<\/c>/g, "")).width;
-      if (testWidth > maxLineWidthPx && line !== "") {
-        wrappedLines.push(line);
-        line = word;
-      } else line = testLine;
+  // --- Tokenizer that understands all formatting markers ---
+  const tokenizerRegex = /(\*\*|_|<c>|<\/c>|<K>|<\/K>|----------|\n|\s+)/g;
+  const allTokens = processedText.split(tokenizerRegex).filter(Boolean);
+
+  // --- Dry Run: Calculate layout and line count without drawing anything ---
+  let lineCount = 1;
+  let currentX = textStartX;
+  let dryStyle = { bold: false, italic: false, isKeyword: false };
+
+  const setDryFont = () => {
+    const weight = dryStyle.bold || dryStyle.isKeyword ? "bold " : "";
+    const style = dryStyle.italic ? "italic " : "";
+    ctx.font = `${weight}${style}${baseFont}`;
+  };
+
+  for (const token of allTokens) {
+    // Update style state for measurement
+    if (token === "**") { dryStyle.bold = !dryStyle.bold; continue; }
+    if (token === "_") { dryStyle.italic = !dryStyle.italic; continue; }
+    if (token === "<K>") { dryStyle.isKeyword = true; continue; }
+    if (token === "</K>") { dryStyle.isKeyword = false; continue; }
+    if (["<c>", "</c>"].includes(token)) continue; // Color doesn't affect width
+
+    // Handle explicit line breaks and dividers
+    // Handle explicit line breaks
+    if (token === "\n") {
+      lineCount++;
+      currentX = textStartX;
+      continue;
     }
-    wrappedLines.push(line);
+    
+    // Handle dividers
+    if (token.trim() === "----------") {
+      if (currentX > textStartX) { // Only add a line if not at the start
+        lineCount++;
+      }
+      // The divider draws on the current line, and the
+      // auto-inserter provides its own \n, so we just reset X.
+      currentX = textStartX;
+      continue;
+    }
+    
+    // Measure token and check for wrapping
+    setDryFont();
+    const tokenWidth = ctx.measureText(token).width;
+    
+    if (currentX > textStartX && currentX + tokenWidth > wrapLimitX && token.trim() !== "") {
+      lineCount++;
+      currentX = textStartX;
+    }
+
+    currentX += tokenWidth;
+    if (dryStyle.italic) currentX += 3; // Add extra space for italic slant
   }
 
-  const stretchCount = wrappedLines.length - 1;
+  // --- Draw the stretchable box based on the calculated line count ---
+  const boxImg = box ? await getImage(assets.boxes[box]) : null;
+  const stretchCount = Math.max(0, lineCount - 1);
+
   const boxHeight = boxImg
-    ? stretchable.includes(key)
-      ? drawStretchBox(boxImg, x, startY, stretchCount, key)
-      : (ctx.drawImage(boxImg, x, startY), boxImg.height)
+    ? drawStretchBox(boxImg, x, startY, stretchCount, key)
     : 0;
 
-  ctx.font = "33px 'Memento'";
-  ctx.fillStyle = "#efeee9";
+  // --- Wet Run: Actually draw the text onto the canvas ---
   ctx.textAlign = "left";
   ctx.shadowColor = "black";
   ctx.shadowBlur = 4;
+
+  let xPos = textStartX;
+  let textY = startY + 50 + (key === "crest" || key === "faith" ? 90 : 0);
+  let wetStyle = { bold: false, italic: false, color: null, isKeyword: false };
+
+  const setWetStyle = () => {
+    const weight = wetStyle.bold || wetStyle.isKeyword ? "bold " : "";
+    const style = wetStyle.italic ? "italic " : "";
+    ctx.font = `${weight}${style}${baseFont}`;
+    ctx.fillStyle = wetStyle.color || (wetStyle.isKeyword ? "#f3d87d" : "#efeee9");
+  };
 
   const dividerToUse = await getImage(
     assets.boxes[key === "card" ? "divider" : "small_divider"]
   );
 
-  let textY = startY + 50 + (key === "crest" || key === "faith" ? 90 : 0);
+  for (const token of allTokens) {
+    // Update style state
+    if (token === "**") { wetStyle.bold = !wetStyle.bold; continue; }
+    if (token === "_") { wetStyle.italic = !wetStyle.italic; continue; }
+    if (token === "<c>") { wetStyle.color = "#f3d87d"; continue; }
+    if (token === "</c>") { wetStyle.color = null; continue; }
+    if (token === "<K>") { wetStyle.isKeyword = true; continue; }
+    if (token === "</K>") { wetStyle.isKeyword = false; continue; }
+    
+    // Handle line breaks
+    if (token === "\n") {
+      textY += lineHeight;
+      xPos = textStartX;
+      continue;
+    }
 
-  // inside drawTextBlock(), replace the token loop with this:
+    // Handle divider
+    if (token.trim() === "----------") {
+      if (xPos > textStartX) textY += lineHeight;
+      ctx.drawImage(dividerToUse, x, textY - 10);
+      xPos = textStartX;
+      continue;
+    }
+    
+    setWetStyle();
+    const tokenWidth = ctx.measureText(token).width;
 
-  function applyFontStyle(baseSize, bold, italic) {
-    const weight = bold ? "bold " : "";
-    const style = italic ? "italic " : "";
-    return `${weight}${style}${baseSize}px 'Memento'`;
+    // Check for wrapping
+    if (xPos > textStartX && xPos + tokenWidth > wrapLimitX && token.trim() !== "") {
+      textY += lineHeight;
+      xPos = textStartX;
+    }
+    
+    // Don't draw leading spaces on a new line
+    if (xPos === textStartX && token.trim() === "") continue;
+
+    ctx.fillText(token, xPos, textY);
+    xPos += tokenWidth;
+    if (wetStyle.italic) xPos += 3;
   }
-
-  function renderSegment(segment, xPos, y, bold = false, italic = false, color = null) {
-    // handle nesting: check outermost tags and recurse
-    // Bold
-    if (/^\*\*(.*)\*\*$/.test(segment)) {
-      const inner = segment.replace(/^\*\*(.*)\*\*$/s, "$1");
-      return renderSegment(inner, xPos, y, true, italic, color);
-    }
-    // Italic
-    if (/^_(.*)_$/.test(segment)) {
-      const inner = segment.replace(/^_(.*)_$/s, "$1");
-      return renderSegment(inner, xPos, y, bold, true, color);
-    }
-    // Color
-    if (/^<c>(.*)<\/c>$/.test(segment)) {
-      const inner = segment.replace(/^<c>(.*)<\/c>$/s, "$1");
-      return renderSegment(inner, xPos, y, bold, italic, "#f3d87d");
-    }
-
-    // Set font based on bold/italic/color for the current segment level
-    const subTokens = segment.split(/(\*\*.*?\*\*|_.*?_|<c>.*?<\/c>)/g).filter(Boolean);
-    for (const sub of subTokens) {
-      // if sub itself is a decorated token, recurse to apply nested styles
-      if (/^\*\*.*\*\*$/.test(sub) || /^_.*_$/.test(sub) || /^<c>.*<\/c>$/.test(sub)) {
-        xPos = renderSegment(sub, xPos, y, bold, italic, color);
-      } else {
-        // plain piece: apply keyword highlighting inside
-        // For keyword highlighting, temporarily override color if keyword matched and no explicit color set
-        const keywordParts = sub.split(HIGHLIGHT_REGEX).filter(Boolean);
-        for (const p of keywordParts) {
-          const isKeyword = HIGHLIGHT_KEYWORDS.includes(p);
-                    
-                    // --- FIX: Apply BOLD if it's a keyword, or if the segment is already bold ---
-                    const currentBold = bold || isKeyword;
-
-                    // Apply highlight color if it's a keyword AND not explicitly colored by <c> tag
-                    if (isKeyword && !color) {
-                      ctx.fillStyle = "#f3d87d";
-                    } else {
-                      // Otherwise, use the inherited color or default text color
-                      ctx.fillStyle = color || "#efeee9";
-                    }
-                    
-                    ctx.font = applyFontStyle(33, currentBold, italic);
-                    ctx.fillText(p, xPos, y);
-                    xPos += ctx.measureText(p).width;
-                  }
-                }
-              }
-    return xPos;
-  }
-
-  // Now iterate wrappedLines and render each line using renderSegment
-  for (let i = 0; i < wrappedLines.length; i++) {
-    const line = wrappedLines[i];
-    let xPos = textStartX;
-
-    if (line.includes("----------")) ctx.globalAlpha = 0;
-
-    // Split the line into tokens of decorated pieces or plain text
-    const tokens = line.split(/(\*\*.*?\*\*|_.*?_|<c>.*?<\/c>)/g).filter(Boolean);
-
-    for (const token of tokens) {
-      xPos = renderSegment(token, xPos, textY);
-    }
-
-    ctx.globalAlpha = 1;
-    if (line.includes("----------")) ctx.drawImage(dividerToUse, x, textY - 10);
-    textY += lineHeight;
-  }
-
-
+  
   return Math.max(boxHeight, textY - startY + 40);
 }
 
@@ -472,7 +479,7 @@ async function drawCard() {
       }
     }
 
-    currentY += blockHeight - 50;
+    currentY += blockHeight - 10;
   }
 
 
@@ -573,7 +580,15 @@ async function drawCard() {
   ctx.shadowColor = "transparent"; ctx.shadowBlur = 0;
 }
 
-// --- Live updates ---
+// --- Live updates with Debouncing ---
+let redrawDebounceTimer = null;
+function debouncedDrawCard() {
+  clearTimeout(redrawDebounceTimer);
+  redrawDebounceTimer = setTimeout(() => {
+    safeDrawCard();
+  }, 250); // 250ms delay before redrawing
+}
+
 [
   nameInput, traitInput, classSelect, raritySelect, costInput, attackInput, defenseInput,
   tokenCheckbox, wordCountCheckbox,
@@ -581,7 +596,7 @@ async function drawCard() {
   document.getElementById("illustratorName"),
   document.getElementById("crestName"),
   document.getElementById("faithName")
-].forEach(el => el?.addEventListener("input", () => safeDrawCard()));
+].forEach(el => el?.addEventListener("input", debouncedDrawCard));
 
 // --- Prevent overlapping draws ---
 let isDrawing = false;
