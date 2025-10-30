@@ -171,6 +171,12 @@ function drawStretchBox(img, x, y, stretchCount = 0, key = "") {
     middleStartY = 107;
     middleHeight = 38;
     bottomHeight = 28;
+  } else if (key === "main") {
+    // Slicing points for the main text box
+    topHeight = 60; // The top decorative border
+    bottomHeight = 120; // The bottom area with the gradient/space for illustrator
+    middleStartY = topHeight;
+    middleHeight = img.height - topHeight - bottomHeight;
   }
 
   ctx.drawImage(img, 0, 0, img.width, topHeight, x, y, img.width, topHeight);
@@ -188,10 +194,103 @@ function drawStretchBox(img, x, y, stretchCount = 0, key = "") {
   return topHeight + middleHeight + bottomHeight + stretchAmount;
 }
 
+// --- NEW function to calculate height without drawing ---
+async function calculateTextBlockHeight(key, startY) {
+  const textValue = textInputs[key].value.trim();
+  if (!textValue) return 0;
+
+  // Shared constants for calculation
+  const isSpecialBox = (key !== "card");
+  const specialLineHeightBefore = 30;
+  const specialLineHeightAfter = 20;
+  const textStartX = 769 + 30; // boxX + 30
+  const wrapLimitX = 1716;
+  const lineHeight = 50;
+  const baseFont = "33px 'Memento'";
+  
+  const processedText = textValue.replace(HIGHLIGHT_REGEX, "<K>$&</K>");
+  const tokenizerRegex = /(\*\*|_|<c>|<\/c>|<K>|<\/K>|----------|\n|\s+)/g;
+  const allTokens = processedText.split(tokenizerRegex).filter(Boolean);
+
+  // Dry Run: Calculate layout and total height
+  let totalHeight = lineHeight;
+  let currentX = textStartX;
+  let dryStyle = { bold: false, italic: false, isKeyword: false };
+  let dryLastTokenWasDivider = false;
+
+  const setDryFont = () => {
+    const weight = dryStyle.bold || dryStyle.isKeyword ? "bold " : "";
+    const style = dryStyle.italic ? "italic " : "";
+    ctx.font = `${weight}${style}${baseFont}`;
+  };
+
+  for (const token of allTokens) {
+    if (token === "**") { dryStyle.bold = !dryStyle.bold; continue; }
+    if (token === "_") { dryStyle.italic = !dryStyle.italic; continue; }
+    if (token === "<K>") { dryStyle.isKeyword = true; continue; }
+    if (token === "</K>") { dryStyle.isKeyword = false; continue; }
+    if (["<c>", "</c>"].includes(token)) continue;
+
+    if (token === "\n") {
+      totalHeight += dryLastTokenWasDivider ? (isSpecialBox ? specialLineHeightAfter : lineHeight) : lineHeight;
+      currentX = textStartX;
+      dryLastTokenWasDivider = false;
+      continue;
+    }
+    
+    if (token.trim() === "----------") {
+      if (currentX > textStartX) {
+        totalHeight += isSpecialBox ? specialLineHeightBefore : lineHeight;
+      }
+      currentX = textStartX;
+      dryLastTokenWasDivider = true;
+      continue;
+    }
+    
+    dryLastTokenWasDivider = false;
+
+    setDryFont();
+    const tokenWidth = ctx.measureText(token).width;
+    
+    if (currentX > textStartX && currentX + tokenWidth > wrapLimitX && token.trim() !== "") {
+      totalHeight += lineHeight;
+      currentX = textStartX;
+    }
+
+    if (currentX === textStartX && token.trim() === "") continue;
+    currentX += tokenWidth;
+    if (dryStyle.italic) currentX += 3;
+  }
+  
+  // Calculate the height of the box itself
+  const boxImg = assets.boxes[key === "card" ? null : key] ? await getImage(assets.boxes[key]) : null;
+  const stretchCount = Math.max(0, (totalHeight / lineHeight) - 1);
+  let boxHeight = 0;
+  if (boxImg) {
+      const topHeight = (key === "crest" || key === "faith") ? 107 : 40;
+      const bottomHeight = (key === "crest" || key === "faith") ? 28 : 40;
+      const middleHeight = boxImg.height - topHeight - bottomHeight;
+      const stretchAmount = stretchCount * 50;
+      boxHeight = topHeight + middleHeight + bottomHeight + stretchAmount;
+  }
+
+  return Math.max(boxHeight, totalHeight + 40); // Return the greater of the two heights
+}
+
 // --- drawTextBlock ---
 async function drawTextBlock(key, box, x, startY) {
   const textValue = textInputs[key].value.trim();
   if (!textValue) return 0;
+
+  // --- MODIFICATION: Define shared constants here ---
+  const isSpecialBox = (key !== "card");
+  const specialLineHeightBefore = 30; // Space *before* divider
+  const specialLineHeightAfter = 20;  // Space *after* divider
+  const specialDividerYOffset = 25;   // Nudge divider up
+  // --- END MODIFICATION ---
+
+  // --- Common setup ---
+  ctx.shadowColor = "transparent";
 
   // --- Common setup ---
   ctx.shadowColor = "transparent";
@@ -208,10 +307,11 @@ async function drawTextBlock(key, box, x, startY) {
   const tokenizerRegex = /(\*\*|_|<c>|<\/c>|<K>|<\/K>|----------|\n|\s+)/g;
   const allTokens = processedText.split(tokenizerRegex).filter(Boolean);
 
-  // --- Dry Run: Calculate layout and line count without drawing anything ---
-  let lineCount = 1;
+  // --- Dry Run: Calculate layout and total height ---
+  let totalHeight = lineHeight; // Start with one line
   let currentX = textStartX;
   let dryStyle = { bold: false, italic: false, isKeyword: false };
+  let dryLastTokenWasDivider = false;
 
   const setDryFont = () => {
     const weight = dryStyle.bold || dryStyle.isKeyword ? "bold " : "";
@@ -225,43 +325,52 @@ async function drawTextBlock(key, box, x, startY) {
     if (token === "_") { dryStyle.italic = !dryStyle.italic; continue; }
     if (token === "<K>") { dryStyle.isKeyword = true; continue; }
     if (token === "</K>") { dryStyle.isKeyword = false; continue; }
-    if (["<c>", "</c>"].includes(token)) continue; // Color doesn't affect width
+    if (["<c>", "</c>"].includes(token)) continue;
 
-    // Handle explicit line breaks and dividers
     // Handle explicit line breaks
     if (token === "\n") {
-      lineCount++;
+      if (dryLastTokenWasDivider) {
+        totalHeight += isSpecialBox ? specialLineHeightAfter : lineHeight;
+      } else {
+        totalHeight += lineHeight;
+      }
       currentX = textStartX;
+      dryLastTokenWasDivider = false;
       continue;
     }
     
     // Handle dividers
     if (token.trim() === "----------") {
       if (currentX > textStartX) { // Only add a line if not at the start
-        lineCount++;
+        totalHeight += isSpecialBox ? specialLineHeightBefore : lineHeight;
       }
-      // The divider draws on the current line, and the
-      // auto-inserter provides its own \n, so we just reset X.
       currentX = textStartX;
+      dryLastTokenWasDivider = true;
       continue;
     }
     
+    dryLastTokenWasDivider = false; // Reset on any other token
+
     // Measure token and check for wrapping
     setDryFont();
     const tokenWidth = ctx.measureText(token).width;
     
     if (currentX > textStartX && currentX + tokenWidth > wrapLimitX && token.trim() !== "") {
-      lineCount++;
+      totalHeight += lineHeight;
       currentX = textStartX;
     }
+
+    // Don't add width for leading spaces on a new line
+    if (currentX === textStartX && token.trim() === "") continue;
 
     currentX += tokenWidth;
     if (dryStyle.italic) currentX += 3; // Add extra space for italic slant
   }
+  // --- End of Dry Run ---
 
   // --- Draw the stretchable box based on the calculated line count ---
   const boxImg = box ? await getImage(assets.boxes[box]) : null;
-  const stretchCount = Math.max(0, lineCount - 1);
+  const stretchCount = Math.max(0, (totalHeight / lineHeight) - 1);
 
   const boxHeight = boxImg
     ? drawStretchBox(boxImg, x, startY, stretchCount, key)
@@ -275,6 +384,7 @@ async function drawTextBlock(key, box, x, startY) {
   let xPos = textStartX;
   let textY = startY + 50 + (key === "crest" || key === "faith" ? 90 : 0);
   let wetStyle = { bold: false, italic: false, color: null, isKeyword: false };
+  let lastTokenWasDivider = false;
 
   const setWetStyle = () => {
     const weight = wetStyle.bold || wetStyle.isKeyword ? "bold " : "";
@@ -296,21 +406,45 @@ async function drawTextBlock(key, box, x, startY) {
     if (token === "<K>") { wetStyle.isKeyword = true; continue; }
     if (token === "</K>") { wetStyle.isKeyword = false; continue; }
     
+    // --- MODIFICATION: Updated \n handler ---
     // Handle line breaks
     if (token === "\n") {
-      textY += lineHeight;
+      if (lastTokenWasDivider) {
+        // This is the \n *after* a divider
+        textY += isSpecialBox ? specialLineHeightAfter : lineHeight;
+      } else {
+        // This is a normal \n
+        textY += lineHeight;
+      }
       xPos = textStartX;
+      lastTokenWasDivider = false; // Reset flag
       continue;
     }
+    // --- END MODIFICATION ---
 
+    // --- MODIFICATION: Updated "----------" handler ---
     // Handle divider
     if (token.trim() === "----------") {
-      if (xPos > textStartX) textY += lineHeight;
-      ctx.drawImage(dividerToUse, x, textY - 10);
+      // 1. Handle line break *before* divider (if not at start of line)
+      if (xPos > textStartX) {
+        textY += isSpecialBox ? specialLineHeightBefore : lineHeight;
+      }
+      
+      // 2. Draw the divider (nudged up)
+      const yOffset = isSpecialBox ? specialDividerYOffset : 10;
+      ctx.drawImage(dividerToUse, x, textY - yOffset);
+      
+      // 3. Reset X position and set flag
       xPos = textStartX;
+      lastTokenWasDivider = true; // Set flag
       continue;
     }
+    // --- END MODIFICATION ---
     
+    // --- MODIFICATION: Reset flag on any other token ---
+    lastTokenWasDivider = false;
+    // --- END MODIFICATION ---
+
     setWetStyle();
     const tokenWidth = ctx.measureText(token).width;
 
@@ -355,53 +489,21 @@ async function drawCard() {
     const maskY = MAIN_ART_Y;
     const maskW = MAIN_MASK_W;
     const maskH = MAIN_MASK_H;
-
     ctx.save();
     ctx.beginPath();
     ctx.rect(maskX, maskY, maskW, maskH);
     ctx.closePath();
     ctx.clip();
-
     ctx.drawImage(uploadedArt, artX, artY, artW, artH);
-
     ctx.restore();
   }
-
-  // === RE-ADD BLURRED BACKGROUND PATCH ===
-  const textBoxX = 722;
-  const textBoxY = 206;
-  const textBoxW = 1078;
-  const textBoxH = 762;
-
-  const offCanvas = document.createElement("canvas");
-  offCanvas.width = textBoxW;
-  offCanvas.height = textBoxH;
-  const offCtx = offCanvas.getContext("2d");
-
-  offCtx.drawImage(
-    bg,
-    textBoxX, textBoxY, textBoxW, textBoxH,
-    0, 0, textBoxW, textBoxH
-  );
-
-  offCtx.filter = "blur(5px)";
-  offCtx.drawImage(offCanvas, 0, 0);
-
-  ctx.drawImage(offCanvas, textBoxX, textBoxY);
 
   ctx.drawImage(gem, 398, 863);
   ctx.drawImage(frame, 48, 153);
 
-  const textBox = await getImage(assets.boxes.text_box);
-  const textBoxNoBottom = await getImage(assets.boxes.text_box_no_bottom);
-  const illustrator = document.getElementById("illustratorName").value.trim();
-
-  if (wordCountCheckbox.checked || illustrator)
-    ctx.drawImage(textBox, textBoxX, textBoxY);
-  else ctx.drawImage(textBoxNoBottom, textBoxX, textBoxY);
-
+  // --- TEXT DRAWING LOGIC ---
   const boxX = 769;
-  let currentY = 246;
+  const startY = 246;
   const textOrder = [
     { key: "card", box: null },
     { key: "evolve", box: "evolve" },
@@ -410,11 +512,64 @@ async function drawCard() {
     { key: "faith", box: "faith" }
   ];
 
+  // --- STEP 1: Calculate total content height first ---
+  let calculatedTotalY = startY;
+  for (const { key } of textOrder) {
+      if (!textInputs[key].value.trim()) continue;
+      const blockHeight = await calculateTextBlockHeight(key);
+      calculatedTotalY += blockHeight - 10;
+  }
+
+  // --- STEP 2: Draw the main text box with calculated stretch ---
+  const illustrator = document.getElementById("illustratorName").value.trim();
+  const showBottomBar = wordCountCheckbox.checked || illustrator;
+
+  // --- MODIFICATION: Set different thresholds ---
+  // This is the original threshold for the box *without* the bottom bar
+  const defaultStretchThreshold = 900;
+  // This is the new, *lower* threshold for the box *with* the bottom bar
+  const bottomBarStretchThreshold = 825; // You can adjust this value (e.g., 800, 825)
+  
+  const stretchThreshold = showBottomBar ? bottomBarStretchThreshold : defaultStretchThreshold;
+  // --- END MODIFICATION ---
+  
+  const stretchPixels = Math.max(0, calculatedTotalY - stretchThreshold);
+  const stretchCount = stretchPixels / 50;
+  const boxAsset = showBottomBar ? assets.boxes.text_box : assets.boxes.text_box_no_bottom;
+  const mainBoxImg = await getImage(boxAsset);
+
+  // --- NEW: DYNAMIC BLUR LOGIC ADDED HERE ---
+  const textBoxX = 722; // The X position of the main text box graphic
+  const textBoxY = 206; // The Y position of the main text box graphic
+  
+  // Calculate the final, stretched dimensions of the box
+  const dynamicBoxWidth = mainBoxImg.width;
+  const dynamicBoxHeight = mainBoxImg.height + stretchPixels;
+
+  // Create an off-screen canvas for the blur effect
+  const offCanvas = document.createElement("canvas");
+  offCanvas.width = dynamicBoxWidth;
+  offCanvas.height = dynamicBoxHeight;
+  const offCtx = offCanvas.getContext("2d");
+
+  // Draw the section of the *background* (bg) that is behind the text box
+  offCtx.drawImage(bg, textBoxX, textBoxY, dynamicBoxWidth, dynamicBoxHeight, 0, 0, dynamicBoxWidth, dynamicBoxHeight);
+  
+  // Apply blur to the off-screen canvas
+  offCtx.filter = "blur(5px)";
+  offCtx.drawImage(offCanvas, 0, 0); // Re-draw on itself to apply the filter
+  
+  // Draw the blurred patch onto the *main* canvas
+  ctx.drawImage(offCanvas, textBoxX, textBoxY);
+  // --- END NEW BLUR LOGIC ---
+
+  drawStretchBox(mainBoxImg, textBoxX, textBoxY, stretchCount, "main");
+  
+  // --- STEP 3: Now, draw all the text blocks on top ---
+  let currentY = startY;
   for (const { key, box } of textOrder) {
     if (!textInputs[key].value.trim()) continue;
     const blockHeight = await drawTextBlock(key, box, boxX, currentY);
-
-    // Shared logic for crest and faith
     const isCrest = key === "crest";
     const isFaith = key === "faith";
     if (isCrest || isFaith) {
@@ -425,65 +580,33 @@ async function drawCard() {
       const nameField = document.getElementById(isCrest ? "crestName" : "faithName");
       const nameValue = nameField ? nameField.value.trim() : "";
 
-      // ✅ Draw circular icon if it exists
       if (iconImg && t) {
         ctx.save();
         ctx.beginPath();
         ctx.arc(iconX + ICON_W / 2, iconY + ICON_H / 2, ICON_W / 2, 0, Math.PI * 2);
         ctx.closePath();
         ctx.clip();
-
-        ctx.drawImage(
-          t.img,
-          iconX + t.tx,
-          iconY + t.ty,
-          t.img.width * t.scale,
-          t.img.height * t.scale
-        );
+        ctx.drawImage(t.img, iconX + t.tx, iconY + t.ty, t.img.width * t.scale, t.img.height * t.scale);
         ctx.restore();
       }
-
-      // ✅ Always draw text if there's any (even without art)
-      if (nameValue) {
+      
+      const defaultName = isCrest ? "Crest" : "Faith";
+      const displayName = nameValue || defaultName;
+      if (displayName) {
         ctx.save();
         ctx.font = "33px 'Memento'";
         ctx.fillStyle = "#f3d87d";
         ctx.textAlign = "left";
         ctx.shadowColor = "black";
         ctx.shadowBlur = 4;
-        ctx.fillText(nameValue, iconX + ICON_W + 17, iconY + ICON_H / 2 + 10);
+        ctx.fillText(displayName, iconX + ICON_W + 17, iconY + ICON_H / 2 + 10);
         ctx.restore();
-      } 
-      else {
-        if (isCrest){
-          ctx.save();
-          ctx.font = "33px 'Memento'";
-          ctx.fillStyle = "#f3d87d";
-          ctx.textAlign = "left";
-          ctx.shadowColor = "black";
-          ctx.shadowBlur = 4;
-          ctx.fillText("Crest", iconX + ICON_W + 17, iconY + ICON_H / 2 + 10);
-          ctx.restore();
-        }
-        else 
-          if (isFaith){
-           ctx.save();
-          ctx.font = "33px 'Memento'";
-          ctx.fillStyle = "#f3d87d";
-          ctx.textAlign = "left";
-          ctx.shadowColor = "black";
-          ctx.shadowBlur = 4;
-          ctx.fillText("Faith", iconX + ICON_W + 17, iconY + ICON_H / 2 + 10);
-          ctx.restore();
-        }
       }
     }
-
     currentY += blockHeight - 10;
   }
 
-
-
+  // --- REMAINDER OF THE DRAWING LOGIC (NAMES, STATS, ETC) ---
   ctx.shadowColor = "black";
   ctx.shadowBlur = 6;
   ctx.fillStyle = "#efeee9";
@@ -496,8 +619,8 @@ async function drawCard() {
   ctx.font = `${secondaryFontSize}px 'Memento'`;
   let textWidth = ctx.measureText(nameText).width;
   const maxWidth = 363;
-  const baseY = 331; // default position
-  const offsetPerStep = -0.75; // how much lower it moves per shrink step
+  const baseY = 331;
+  const offsetPerStep = -0.75;
   let shrinkSteps = 0;
   while (textWidth > maxWidth && secondaryFontSize > 2) {
     secondaryFontSize -= 2;
@@ -514,68 +637,46 @@ async function drawCard() {
   const traitText = traitInput.value.trim() || "—";
   ctx.fillText(traitText, 1306, 147);
 
-  // --- This is your NEW code ---
-  const numberSpacing = -5; // Your letter-spacing value
+  const numberSpacing = -5;
   const numberFont = 'Sv_numbers';
-  // --- You can TWEAK these max widths ---
-  const costMaxWidth = 95;  // Max width for the Cost circle
-  const statMaxWidth = 90;  // Max width for the Atk/Def circles
-  // --- NEW: Define specific nudge coefficients ---
-  const COST_NUDGE = -0.2;  // Good starting point for 80px font
-  const STAT_NUDGE = -0.2;  // Slightly higher for 82px font
+  const costMaxWidth = 95;
+  const statMaxWidth = 90;
+  const COST_NUDGE = -0.2;
+  const STAT_NUDGE = -0.2;
 
-  // Draw Cost
-  drawScaledNumber(
-    costInput.value,
-    197, 335,      // X, Y coordinates
-    80,             // Max font size
-    costMaxWidth,   // Max width
-    numberFont,
-    numberSpacing,
-    COST_NUDGE      // <-- PASSING NEW PARAMETER
-  );
+  drawScaledNumber(costInput.value, 197, 335, 80, costMaxWidth, numberFont, numberSpacing, COST_NUDGE);
 
-  // Draw Atk/Def
   if (typeSelect.value === "Follower") {
-    // Attack
-    drawScaledNumber(
-      attackInput.value,
-      201, 922,      // X, Y coordinates
-      82,             // Max font size
-      statMaxWidth,   // Max width
-      numberFont,
-      numberSpacing,
-      STAT_NUDGE      // <-- PASSING NEW PARAMETER
-    );
-    // Defense
-    drawScaledNumber(
-      defenseInput.value,
-      642, 917,      // X, Y coordinates
-      82,             // Max font size
-      statMaxWidth,   // Max width
-      numberFont,
-      numberSpacing,
-      STAT_NUDGE      // <-- PASSING NEW PARAMETER
-    );
+    drawScaledNumber(attackInput.value, 201, 922, 82, statMaxWidth, numberFont, numberSpacing, STAT_NUDGE);
+    drawScaledNumber(defenseInput.value, 642, 917, 82, statMaxWidth, numberFont, numberSpacing, STAT_NUDGE);
   }
-  ctx.letterSpacing = "0px"; // Reset for all other text!
+  ctx.letterSpacing = "0px";
 
   if (tokenCheckbox.checked) {
     ctx.font = "28px 'NotoSans'";
     ctx.textAlign = "right";
     ctx.fillText("*This is a token card.", 1788, 1025);
   }
+
+  // --- MODIFICATION: Calculate dynamic Y for bottom bar text ---
+  // 'stretchPixels' was calculated in STEP 2 and is in scope here.
+  const bottomBarBaseY = 911;
+  const dynamicBottomBarY = bottomBarBaseY + stretchPixels;
+  // --- END MODIFICATION ---
+
   if (illustrator) {
     ctx.font = "28px 'NotoSans'";
     ctx.textAlign = "left";
-    ctx.fillText(`Illustrator: ${illustrator}`, 790, 911);
+    // Use the new dynamic Y coordinate
+    ctx.fillText(`Illustrator: ${illustrator}`, 790, dynamicBottomBarY);
   }
   if (wordCountCheckbox.checked) {
     const allText = Object.values(textInputs).map(t => t.value).join(" ");
     const wordCount = allText.split(/\s+/).filter(w => w.length).length;
     ctx.font = "28px 'NotoSans'";
     ctx.textAlign = "right";
-    ctx.fillText(`Word count: ${wordCount}`, 1730, 911);
+    // Use the new dynamic Y coordinate
+    ctx.fillText(`Word count: ${wordCount}`, 1730, dynamicBottomBarY);
   }
   ctx.shadowColor = "transparent"; ctx.shadowBlur = 0;
 }
@@ -909,7 +1010,6 @@ attachPanAndZoom(mainPreviewCanvas, previewState.main, mainZoomSlider);
 attachPanAndZoom(crestPreviewCanvas, previewState.crest, crestZoomSlider);
 attachPanAndZoom(faithPreviewCanvas, previewState.faith, faithZoomSlider);
 
-
 // --- Text Formatting Toolbar (Bold / Italic / Color) ---
 // --- Toolbar: Bold / Italic / Color (uses ** / _ / <c> tags) ---
 document.querySelectorAll(".text-toolbar button").forEach((button) => {
@@ -985,8 +1085,3 @@ document.getElementById("downloadBtn").addEventListener("click", () => {
     alert("Error: Could not save image. Try again.");
   }
 });
-
-
-
-
-
