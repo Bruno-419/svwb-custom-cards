@@ -203,6 +203,12 @@ async function calculateTextBlockHeight(key, startY) {
   const isSpecialBox = (key !== "card");
   const specialLineHeightBefore = 30;
   const specialLineHeightAfter = 20;
+
+  // --- NEW: Add custom heights for the main card box divider ---
+  const cardLineHeightBefore = 30; // Was lineHeight (50)
+  const cardLineHeightAfter = 40;  // Was lineHeight (50)
+  // --- END NEW ---
+  
   const textStartX = 769 + 30; // boxX + 30
   const wrapLimitX = 1716;
   const lineHeight = 50;
@@ -232,7 +238,9 @@ async function calculateTextBlockHeight(key, startY) {
     if (["<c>", "</c>"].includes(token)) continue;
 
     if (token === "\n") {
-      totalHeight += dryLastTokenWasDivider ? (isSpecialBox ? specialLineHeightAfter : lineHeight) : lineHeight;
+      // --- MODIFIED: Use cardLineHeightAfter for main box ---
+      totalHeight += dryLastTokenWasDivider ? (isSpecialBox ? specialLineHeightAfter : cardLineHeightAfter) : lineHeight;
+      // --- END MODIFICATION ---
       currentX = textStartX;
       dryLastTokenWasDivider = false;
       continue;
@@ -240,7 +248,9 @@ async function calculateTextBlockHeight(key, startY) {
     
     if (token.trim() === "----------") {
       if (currentX > textStartX) {
-        totalHeight += isSpecialBox ? specialLineHeightBefore : lineHeight;
+        // --- MODIFIED: Use cardLineHeightBefore for main box ---
+        totalHeight += isSpecialBox ? specialLineHeightBefore : cardLineHeightBefore;
+        // --- END MODIFICATION ---
       }
       currentX = textStartX;
       dryLastTokenWasDivider = true;
@@ -287,10 +297,12 @@ async function drawTextBlock(key, box, x, startY) {
   const specialLineHeightBefore = 30; // Space *before* divider
   const specialLineHeightAfter = 20;  // Space *after* divider
   const specialDividerYOffset = 25;   // Nudge divider up
-  // --- END MODIFICATION ---
 
-  // --- Common setup ---
-  ctx.shadowColor = "transparent";
+  // --- NEW: Add constants for the main card box ---
+  const cardLineHeightBefore = 30; // Was 50 (lineHeight)
+  const cardLineHeightAfter = 40;  // Was 50 (lineHeight)
+  const cardDividerYOffset = 15;   // Was 10
+  // --- END NEW ---
 
   // --- Common setup ---
   ctx.shadowColor = "transparent";
@@ -330,7 +342,8 @@ async function drawTextBlock(key, box, x, startY) {
     // Handle explicit line breaks
     if (token === "\n") {
       if (dryLastTokenWasDivider) {
-        totalHeight += isSpecialBox ? specialLineHeightAfter : lineHeight;
+        // --- MODIFIED: Use cardLineHeightAfter for main box ---
+        totalHeight += isSpecialBox ? specialLineHeightAfter : cardLineHeightAfter;
       } else {
         totalHeight += lineHeight;
       }
@@ -342,7 +355,8 @@ async function drawTextBlock(key, box, x, startY) {
     // Handle dividers
     if (token.trim() === "----------") {
       if (currentX > textStartX) { // Only add a line if not at the start
-        totalHeight += isSpecialBox ? specialLineHeightBefore : lineHeight;
+        // --- MODIFIED: Use cardLineHeightBefore for main box ---
+        totalHeight += isSpecialBox ? specialLineHeightBefore : cardLineHeightBefore;
       }
       currentX = textStartX;
       dryLastTokenWasDivider = true;
@@ -411,7 +425,7 @@ async function drawTextBlock(key, box, x, startY) {
     if (token === "\n") {
       if (lastTokenWasDivider) {
         // This is the \n *after* a divider
-        textY += isSpecialBox ? specialLineHeightAfter : lineHeight;
+        textY += isSpecialBox ? specialLineHeightAfter : cardLineHeightAfter; // MODIFIED
       } else {
         // This is a normal \n
         textY += lineHeight;
@@ -427,11 +441,11 @@ async function drawTextBlock(key, box, x, startY) {
     if (token.trim() === "----------") {
       // 1. Handle line break *before* divider (if not at start of line)
       if (xPos > textStartX) {
-        textY += isSpecialBox ? specialLineHeightBefore : lineHeight;
+        textY += isSpecialBox ? specialLineHeightBefore : cardLineHeightBefore; // MODIFIED
       }
       
       // 2. Draw the divider (nudged up)
-      const yOffset = isSpecialBox ? specialDividerYOffset : 10;
+      const yOffset = isSpecialBox ? specialDividerYOffset : cardDividerYOffset; // MODIFIED
       ctx.drawImage(dividerToUse, x, textY - yOffset);
       
       // 3. Reset X position and set flag
@@ -502,7 +516,7 @@ async function drawCard() {
   ctx.drawImage(frame, 48, 153);
 
   // --- TEXT DRAWING LOGIC ---
-  const boxX = 769;
+  const boxX = 768;
   const startY = 246;
   const textOrder = [
     { key: "card", box: null },
