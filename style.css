@@ -358,61 +358,60 @@ canvas { max-width: 100%; height: auto; border-radius: 8px; border: 2px solid #4
 }
 
 
-
 /*——————COLOR THINGS———————— */
 /*——————COLOR THINGS———————— */
 /*——————COLOR THINGS———————— */
 
 #cardName {
   position: relative;
-  border-left: 6px solid #20B2AA; 
-  padding-left: 10px; 
-  box-shadow: inset 0 0 0 1px rgba(0, 255, 183, 0.15); 
+  border-left: 6px solid #20B2AA; /* red border */
+  padding-left: 10px; /* space so text doesn't touch border */
+  box-shadow: inset 0 0 0 1px rgba(0, 255, 183, 0.15); /* subtle glow */
   border-top-left-radius: 6px;
   border-bottom-left-radius: 6px;
 }
 
 #cardTrait {
   position: relative;
-  border-left: 6px solid #20B2AA; 
-  padding-left: 10px; 
-  box-shadow: inset 0 0 0 1px rgba(0, 255, 183, 0.15); 
+  border-left: 6px solid #20B2AA; /* red border */
+  padding-left: 10px; /* space so text doesn't touch border */
+  box-shadow: inset 0 0 0 1px rgba(0, 255, 183, 0.15); /* subtle glow */
   border-top-left-radius: 6px;
   border-bottom-left-radius: 6px;
 }
 
 #illustratorName {
   position: relative;
-  border-left: 6px solid #20B2AA; 
-  padding-left: 10px; 
-  box-shadow: inset 0 0 0 1px rgba(0, 255, 183, 0.15); 
+  border-left: 6px solid #20B2AA; /* red border */
+  padding-left: 10px; /* space so text doesn't touch border */
+  box-shadow: inset 0 0 0 1px rgba(0, 255, 183, 0.15); /* subtle glow */
   border-top-left-radius: 6px;
   border-bottom-left-radius: 6px;
 }
 
 #costValue {
   position: relative;
-  border-left: 6px solid #3CB371; 
-  padding-left: 10px; 
-  box-shadow: inset 0 0 0 1px rgba(0, 255, 38, 0.15); 
+  border-left: 6px solid #3CB371; /* red border */
+  padding-left: 10px; /* space so text doesn't touch border */
+  box-shadow: inset 0 0 0 1px rgba(0, 255, 38, 0.15); /* subtle glow */
   border-top-left-radius: 6px;
   border-bottom-left-radius: 6px;
 }
 
 #attackValue {
   position: relative;
-  border-left: 6px solid #1E90FF;
-  padding-left: 10px; 
-  box-shadow: inset 0 0 0 1px rgba(0, 145, 255, 0.15); 
+  border-left: 6px solid #1E90FF; /* red border */
+  padding-left: 10px; /* space so text doesn't touch border */
+  box-shadow: inset 0 0 0 1px rgba(0, 145, 255, 0.15); /* subtle glow */
   border-top-left-radius: 6px;
   border-bottom-left-radius: 6px;
 }
 
 #defenseValue {
   position: relative;
-  border-left: 6px solid #DC143C; 
-  padding-left: 10px; 
-  box-shadow: inset 0 0 0 1px rgba(255, 0, 0, 0.15); 
+  border-left: 6px solid #DC143C; /* red border */
+  padding-left: 10px; /* space so text doesn't touch border */
+  box-shadow: inset 0 0 0 1px rgba(255, 0, 0, 0.15); /* subtle glow */
   border-top-left-radius: 6px;
   border-bottom-left-radius: 6px;
 }
@@ -465,7 +464,7 @@ canvas { max-width: 100%; height: auto; border-radius: 8px; border: 2px solid #4
 .adorned-crest {
   position: relative;
   padding: 14px 16px;
-  border-left: 6px solid #bcbcbc; /* White border */
+  border-left: 6px solid #bcbcbc; /* Orange border */
   background: #1c1c1c;
   border-radius: 8px;
   box-shadow: inset 0 0 0 1px rgba(147, 143, 139, 0.2);
@@ -484,6 +483,7 @@ canvas { max-width: 100%; height: auto; border-radius: 8px; border: 2px solid #4
   flex-direction: column;
   align-items: center;
 }
+
 
 
 
@@ -648,13 +648,6 @@ canvas { max-width: 100%; height: auto; border-radius: 8px; border: 2px solid #4
   display: inline-block;
 }
 
-/* Make the zoom sliders narrower */
-.crest-art-container .zoom-slider,
-.faith-art-container .zoom-slider {
-  width: 80px !important;
-  margin-top: 6px;
-}
-
 /* Tweak layout for tighter alignment */
 .crest-art-container,
 .faith-art-container {
@@ -705,12 +698,12 @@ canvas { max-width: 100%; height: auto; border-radius: 8px; border: 2px solid #4
   margin-bottom: -6px; /* brings text field closer below */
 }
 
-/* Smaller slider width and spacing */
+/* Adjusted slider width and spacing */
 .crest-art-container .zoom-slider,
 .faith-art-container .zoom-slider {
-  width: 70px !important;
-  margin-top: 4px;
-  margin-bottom: 4px;
+  width: 140px; /* Made longer */
+  margin-top: 12px; /* Matches base slider styles */
+  margin-bottom: 20px; /* Matches base slider styles */
 }
 
 /* === Always show crest/faith upload buttons === */
@@ -746,18 +739,21 @@ canvas { max-width: 100%; height: auto; border-radius: 8px; border: 2px solid #4
   color: #fff;
 }
 
-
 /* New CSS: Prevents touch-scrolling the main page when manipulating the art canvas */
 
 /* Target the main card art preview canvas */
 #mainPreviewCanvas {
   touch-action: none; 
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 /* Target the Crest and Faith art preview canvases */
 #crestPreviewCanvas,
 #faithPreviewCanvas {
   touch-action: none; 
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 /* Target the zoom sliders */
