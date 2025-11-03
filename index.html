@@ -55,7 +55,7 @@
         Upload Art
         <input type="file" id="artUpload" accept="image/*">
       </label>
-
+      <button id="previewBtn" type="button">Preview</button>
       <button id="downloadBtn" type="button">Download</button>
     </div>
   </header>
@@ -239,7 +239,7 @@
     </main>
   </div>
 
-  <section class="canvas-container">
+  <section class="canvas-container" style="display: none;">
     <canvas id="previewCanvas" width="1920" height="1080"></canvas>
   </section>
 
@@ -257,8 +257,11 @@
     toggleStatsVisibility();
     cardTypeSelect.addEventListener('change', toggleStatsVisibility);
   </script>
-
-
+  
 </body>
 </html>
+
+
+
+
 
