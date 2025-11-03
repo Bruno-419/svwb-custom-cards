@@ -888,7 +888,7 @@ function updateAll() {
   syncIconToGlobals("crest");
   syncIconToGlobals("faith");
 
-  safeDrawCard();
+  //safeDrawCard();
 
   drawPreviewCanvas(mainPreviewCtx, mainPreviewCanvas, previewState.main, "rect");
   drawPreviewCanvas(crestPreviewCtx, crestPreviewCanvas, previewState.crest, "circle");
@@ -977,7 +977,7 @@ function attachPanAndZoom(canvasEl, state, sliderEl) {
 
   function stopDrag(e) {
     dragging = false;
-    if (canvasEl.releasePointerCapture) try { canvasEl.releasePointerCapture(e.pointerId); } catch (err) {}
+    //if (canvasEl.releasePointerCapture) try { canvasEl.releasePointerCapture(e.pointerId); } catch (err) {}
   }
   canvasEl.addEventListener("pointerup", stopDrag);
   canvasEl.addEventListener("pointerleave", stopDrag);
@@ -1086,16 +1086,70 @@ document.querySelectorAll(".text-toolbar button").forEach((button) => {
 // initial draw
 document.fonts.ready.then(() => setTimeout(updateAll, 60));
 
-/* === High-Quality Download (Lossless PNG) === */
-document.getElementById("downloadBtn").addEventListener("click", () => {
+// REPLACE the existing downloadBtn listener with this:
+document.getElementById("downloadBtn").addEventListener("click", async () => { // <-- Made async
+  
+  // Add a "loading" state to the button
+  const btn = document.getElementById("downloadBtn");
+  const originalText = btn.textContent;
+  btn.textContent = "Generating...";
+  btn.disabled = true;
+
   try {
+    // 1. Run the high-quality draw function ONCE.
+    await drawCard(); 
+    
+    // 2. Continue with the download as normal.
     const canvas = document.getElementById("previewCanvas");
     const link = document.createElement("a");
     link.download = `${(nameInput.value.trim() || "card")}.png`;
-    link.href = canvas.toDataURL("image/png", 1.0); // full quality, no compression
+    link.href = canvas.toDataURL("image/png", 1.0); // full quality
     link.click();
+    
   } catch (err) {
     console.error("Download failed:", err);
     alert("Error: Could not save image. Try again.");
+  } finally {
+    // 3. Restore the button
+    btn.textContent = originalText;
+    btn.disabled = false;
+  }
+});
+
+// ADD THIS ENTIRE NEW BLOCK AT THE END OF THE FILE
+
+document.getElementById("previewBtn").addEventListener("click", async () => {
+  // Add a "loading" state to the button
+  const btn = document.getElementById("previewBtn");
+  const originalText = btn.textContent;
+  btn.textContent = "Generating...";
+  btn.disabled = true;
+
+  try {
+    // 1. Run the high-quality draw function ONCE.
+    await drawCard(); 
+    
+    // 2. Get the image data from the hidden canvas.
+    const canvas = document.getElementById("previewCanvas");
+    const dataUrl = canvas.toDataURL("image/png", 1.0);
+    
+    // 3. Open a new tab and display the image.
+    const previewWindow = window.open("");
+    if (previewWindow) {
+      previewWindow.document.title = `${(nameInput.value.trim() || "card")}-preview`;
+      previewWindow.document.body.style.margin = "0";
+      previewWindow.document.body.style.backgroundColor = "#222";
+      previewWindow.document.body.innerHTML = `<img src="${dataUrl}" alt="Card Preview" style="max-width: 100%; height: auto; display: block; margin: auto;">`;
+    } else {
+      alert("Pop-up blocked! Please allow pop-ups for this site to use the preview feature.");
+    }
+
+  } catch (err) {
+    console.error("Preview failed:", err);
+    alert("Error: Could not generate preview. Try again.");
+  } finally {
+    // 4. Restore the button
+    btn.textContent = originalText;
+    btn.disabled = false;
   }
 });
