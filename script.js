@@ -53,6 +53,7 @@ const assets = {
 // --- DOM elements ---
 const canvas = document.getElementById("previewCanvas");
 const ctx = canvas.getContext("2d");
+ctx.imageSmoothingEnabled = true; // <-- ADD THIS LINE
 const nameInput = document.getElementById("cardName");
 const crestNameInput = document.getElementById("crestName");
 const faithNameInput = document.getElementById("faithName");
@@ -499,17 +500,36 @@ async function drawCard() {
 
   // === Masked Main Art ===
   if (uploadedArt) {
-    const maskX = MAIN_ART_X;
-    const maskY = MAIN_ART_Y;
-    const maskW = MAIN_MASK_W;
-    const maskH = MAIN_MASK_H;
+    const s = previewState.main; // Get the state
+    
+    // Calculate the final *scaled* dimensions of the entire image
+    const dWidth = uploadedArt.width * s.scale;
+    const dHeight = uploadedArt.height * s.scale;
+
+    // 1. Create a high-quality, pre-scaled bitmap of the *entire* image
+    const bmp = await createImageBitmap(uploadedArt, 0, 0, uploadedArt.width, uploadedArt.height, {
+      resizeWidth: Math.round(dWidth),   // Use the dynamic scaled width
+      resizeHeight: Math.round(dHeight), // Use the dynamic scaled height
+      resizeQuality: "high" 
+    });
+    
+    // 2. Create the rectangular clip path for the main art
     ctx.save();
     ctx.beginPath();
-    ctx.rect(maskX, maskY, maskW, maskH);
+    ctx.rect(MAIN_ART_X, MAIN_ART_Y, MAIN_MASK_W, MAIN_MASK_H);
     ctx.closePath();
     ctx.clip();
-    ctx.drawImage(uploadedArt, artX, artY, artW, artH);
+    
+    // 3. Draw the pre-scaled bitmap, panned correctly
+    // (s.tx/s.ty are relative to the mask, so we add the mask's position)
+    ctx.drawImage(
+      bmp, 
+      MAIN_ART_X + s.tx, 
+      MAIN_ART_Y + s.ty
+    );
+    
     ctx.restore();
+    bmp.close(); // Clean up the bitmap from memory
   }
 
   ctx.drawImage(gem, 398, 863);
@@ -594,14 +614,37 @@ async function drawCard() {
       const nameField = document.getElementById(isCrest ? "crestName" : "faithName");
       const nameValue = nameField ? nameField.value.trim() : "";
 
-      if (iconImg && t) {
+      if (iconImg && (isCrest || isFaith)) {
+        // Get the correct preview state
+        const s = previewState[isCrest ? "crest" : "faith"];
+  
+        // Calculate the final *scaled* dimensions of the icon
+        const dWidth = iconImg.width * s.scale;
+        const dHeight = iconImg.height * s.scale;
+
+        // 1. Create a high-quality, pre-scaled bitmap
+        const bmp = await createImageBitmap(iconImg, 0, 0, iconImg.width, iconImg.height, {
+          resizeWidth: Math.round(dWidth),
+          resizeHeight: Math.round(dHeight),
+          resizeQuality: "high"
+        });
+  
+        // 2. Draw the bitmap, clipping it to a circle
         ctx.save();
         ctx.beginPath();
         ctx.arc(iconX + ICON_W / 2, iconY + ICON_H / 2, ICON_W / 2, 0, Math.PI * 2);
         ctx.closePath();
         ctx.clip();
-        ctx.drawImage(t.img, iconX + t.tx, iconY + t.ty, t.img.width * t.scale, t.img.height * t.scale);
+        
+        // 3. Draw the pre-scaled, panned bitmap
+        ctx.drawImage(
+          bmp,
+          iconX + s.tx,
+          iconY + s.ty
+        );
         ctx.restore();
+        
+        bmp.close(); // Clean up
       }
       
       const defaultName = isCrest ? "Crest" : "Faith";
@@ -732,21 +775,24 @@ window.ICON_W = ICON_W; window.ICON_H = ICON_H;
 
 const mainPreviewCanvas = document.getElementById("mainPreviewCanvas");
 const mainPreviewCtx = mainPreviewCanvas ? mainPreviewCanvas.getContext("2d") : null;
+if (mainPreviewCtx) mainPreviewCtx.imageSmoothingEnabled = true; // <-- ADD THIS LINE
 const mainZoomSlider = document.getElementById("mainZoomSlider");
 const crestPreviewCanvas = document.getElementById("crestPreviewCanvas");
 const crestPreviewCtx = crestPreviewCanvas ? crestPreviewCanvas.getContext("2d") : null;
+if (crestPreviewCtx) crestPreviewCtx.imageSmoothingEnabled = true; // <-- ADD THIS LINE
 const crestZoomSlider = document.getElementById("crestZoomSlider");
 const faithPreviewCanvas = document.getElementById("faithPreviewCanvas");
 const faithPreviewCtx = faithPreviewCanvas ? faithPreviewCanvas.getContext("2d") : null;
+if (faithPreviewCtx) faithPreviewCtx.imageSmoothingEnabled = true; // <-- ADD THIS LINE
 const faithZoomSlider = document.getElementById("faithZoomSlider");
 const artInput = document.getElementById("artUpload");
 const crestInput = document.getElementById("crestArtUpload");
 const faithInput = document.getElementById("faithArtUpload");
 
 const previewState = {
-  main: { img: null, scale: 1, tx: 0, ty: 0, maskW: MAIN_MASK_W, maskH: MAIN_MASK_H },
-  crest: { img: null, scale: 1, tx: 0, ty: 0, maskW: ICON_W, maskH: ICON_H },
-  faith: { img: null, scale: 1, tx: 0, ty: 0, maskW: ICON_W, maskH: ICON_H }
+  main: { img: null, scale: 1, tx: 0, ty: 0, maskW: MAIN_MASK_W, maskH: MAIN_MASK_H, minScale: 1 },
+  crest: { img: null, scale: 1, tx: 0, ty: 0, maskW: ICON_W, maskH: ICON_H, minScale: 1 },
+  faith: { img: null, scale: 1, tx: 0, ty: 0, maskW: ICON_W, maskH: ICON_H, minScale: 1 }
 };
 
 function loadImageFromFile(file) {
@@ -762,6 +808,7 @@ function loadImageFromFile(file) {
 function fitImageToMask(img, s) {
   const scale = Math.max(s.maskW / img.width, s.maskH / img.height);
   s.scale = scale;
+  s.minScale = scale; // <-- Store the minimum scale
   s.tx = (s.maskW - img.width * scale) / 2;
   s.ty = (s.maskH - img.height * scale) / 2;
 }
@@ -904,7 +951,14 @@ if (artInput) {
       const img = await loadImageFromFile(file);
       previewState.main.img = img;
       fitImageToMask(img, previewState.main);
-      if (mainZoomSlider) mainZoomSlider.value = previewState.main.scale;
+      if (mainZoomSlider) {
+        const min = previewState.main.minScale;
+        const max = min * 5; // 500% zoom from fit
+        mainZoomSlider.min = min;
+        mainZoomSlider.max = max;
+        mainZoomSlider.step = (max - min) / 100; // 100 steps in slider
+        mainZoomSlider.value = previewState.main.scale;
+      }
       updateAll();
     } catch (err) {
       console.error("Failed to load main art:", err);
@@ -919,7 +973,14 @@ if (crestInput) {
       const img = await loadImageFromFile(file);
       previewState.crest.img = img;
       fitImageToMask(img, previewState.crest);
-      if (crestZoomSlider) crestZoomSlider.value = previewState.crest.scale;
+      if (crestZoomSlider) {
+        const min = previewState.crest.minScale;
+        const max = min * 8; // 800% zoom from fit for icons
+        crestZoomSlider.min = min;
+        crestZoomSlider.max = max;
+        crestZoomSlider.step = (max - min) / 100; // 100 steps in slider
+        crestZoomSlider.value = previewState.crest.scale;
+      }
       updateAll();
     } catch (err) {
       console.error("Failed to load crest art:", err);
@@ -934,7 +995,14 @@ if (faithInput) {
       const img = await loadImageFromFile(file);
       previewState.faith.img = img;
       fitImageToMask(img, previewState.faith);
-      if (faithZoomSlider) faithZoomSlider.value = previewState.faith.scale;
+      if (faithZoomSlider) {
+        const min = previewState.faith.minScale;
+        const max = min * 8; // 800% zoom from fit for icons
+        faithZoomSlider.min = min;
+        faithZoomSlider.max = max;
+        faithZoomSlider.step = (max - min) / 100; // 100 steps in slider
+        faithZoomSlider.value = previewState.faith.scale;
+      }
       updateAll();
     } catch (err) {
       console.error("Failed to load faith art:", err);
@@ -986,9 +1054,22 @@ function attachPanAndZoom(canvasEl, state, sliderEl) {
   canvasEl.addEventListener("wheel", (ev) => {
     if (!state.img) return;
     ev.preventDefault();
-    const delta = ev.deltaY > 0 ? -0.05 : 0.05;
+    
+    // Determine zoom speed
+    const zoomIntensity = 0.05;
+    const delta = ev.deltaY > 0 ? -1 : 1; // -1 for zoom out, 1 for zoom in
     const oldScale = state.scale;
-    const newScale = Math.max(0.1, state.scale + delta);
+    
+    // Get min/max from state and slider
+    const minScale = state.minScale;
+    const maxScale = sliderEl ? parseFloat(sliderEl.max) : oldScale * 2;
+    
+    // Calculate new scale
+    let newScale = oldScale * (1 + delta * zoomIntensity);
+    
+    // Clamp to min/max
+    newScale = Math.max(minScale, Math.min(maxScale, newScale));
+    
     const rect = canvasEl.getBoundingClientRect();
     const cx = ev.clientX - rect.left;
     const cy = ev.clientY - rect.top;
@@ -1006,7 +1087,7 @@ function attachPanAndZoom(canvasEl, state, sliderEl) {
   if (sliderEl) {
     sliderEl.addEventListener("input", (ev) => {
       if (!state.img) return;
-      const newScale = parseFloat(ev.target.value);
+      const newScale = Math.max(state.minScale, parseFloat(ev.target.value)); // Enforce minScale
       const oldScale = state.scale;
       const cx = state.maskW / 2, cy = state.maskH / 2;
       const imgSpaceX = (cx - state.tx) / oldScale;
