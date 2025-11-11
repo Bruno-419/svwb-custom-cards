@@ -66,6 +66,7 @@ const attackInput = document.getElementById("attackValue");
 const defenseInput = document.getElementById("defenseValue");
 const tokenCheckbox = document.getElementById("tokenCheckbox");
 const wordCountCheckbox = document.getElementById("wordCountCheckbox");
+const autoDividerCheckbox = document.getElementById("autoDividerCheckbox");
 const textInputs = {
   card: document.getElementById("cardText"),
   evolve: document.getElementById("evolveText"),
@@ -136,14 +137,17 @@ async function getImage(src) {
 // --- Auto insert "----------" marker ---
 Object.values(textInputs).forEach((textarea) => {
   textarea.addEventListener("input", () => {
-    const cursorPos = textarea.selectionStart;
-    const value = textarea.value;
-    const before = value.slice(0, cursorPos);
-    const after = value.slice(cursorPos);
-    if (before.endsWith("\n\n")) {
-      const newValue = before.slice(0, -1) + "----------\n" + after;
-      textarea.value = newValue;
-      textarea.selectionStart = textarea.selectionEnd = cursorPos + 10;
+    // --- MODIFICATION: Only auto-insert if checkbox is checked ---
+    if (autoDividerCheckbox.checked) {
+      const cursorPos = textarea.selectionStart;
+      const value = textarea.value;
+      const before = value.slice(0, cursorPos);
+      const after = value.slice(cursorPos);
+      if (before.endsWith("\n\n")) {
+        const newValue = before.slice(0, -1) + "----------\n" + after;
+        textarea.value = newValue;
+        textarea.selectionStart = textarea.selectionEnd = cursorPos + 10;
+      }
     }
   });
 });
@@ -151,11 +155,11 @@ Object.values(textInputs).forEach((textarea) => {
 
 // --- Text highlight keywords ---
 const HIGHLIGHT_KEYWORDS = [
-  "Fanfare","Last Words","Engage","Strike","Storm","Ambush","Bane","Drain","Ward","Rush",
-  "Overflow","Evolve","Super-Evolve","Spellboost","Clash","Mode","Intimidate","Aura","Barrier",
-  "Fuse","Necromancy","Combo","Earth Rite","Rally","Countdown","Reanimate","Earth Sigil",
-  "Crystallize","Invoke","Invoked","Sanguine","Skybound Art","Super Skybound Art","Maneuver",
-  "Enhance","Union Burst","Accelerate"
+  "Fanfare","Last Words","Engage","Strike","Storm","Ambush","Bane","Drain","Ward","Rush","Overflow",
+  "On Spellboost","Clash","Mode","Intimidate","Aura","Barrier","Fuse","Fused","Necromancy","Combo",
+  "Earth Rite","Rally","Countdown","Reanimate","Earth Sigil","Crystallize","Crystallized","Invoke",
+  "Invoked","Sanguine","Skybound Art","Super Skybound Art","Maneuver","Maneuverable","Maneuvering",
+  "Enhance","Union Burst","Accelerate","Burial Rite"
 ];
 const HIGHLIGHT_REGEX = new RegExp(`\\b(${HIGHLIGHT_KEYWORDS.join("|")})\\b`, "g");
 
@@ -215,7 +219,13 @@ async function calculateTextBlockHeight(key, startY) {
   const lineHeight = 50;
   const baseFont = "33px 'Memento'";
   
-  const processedText = textValue.replace(HIGHLIGHT_REGEX, "<K>$&</K>");
+  let processedText = textValue.replace(HIGHLIGHT_REGEX, "<K>$&</K>");
+  if (key === "evolve" && processedText.startsWith("Evolve")) {
+    processedText = processedText.replace(/^Evolve/, "<K>Evolve</K>");
+  }
+  if (key === "superEvolve" && processedText.startsWith("Super-Evolve")) {
+    processedText = processedText.replace(/^Super-Evolve/, "<K>Super-Evolve</K>");
+  }
   const tokenizerRegex = /(\*\*|_|<c>|<\/c>|<K>|<\/K>|----------|\n|\s+)/g;
   const allTokens = processedText.split(tokenizerRegex).filter(Boolean);
 
@@ -314,7 +324,13 @@ async function drawTextBlock(key, box, x, startY) {
   const baseFont = "33px 'Memento'";
 
   // --- Pre-process text to wrap keywords in special tags for easier tokenizing ---
-  const processedText = textValue.replace(HIGHLIGHT_REGEX, "<K>$&</K>");
+  let processedText = textValue.replace(HIGHLIGHT_REGEX, "<K>$&</K>");
+  if (key === "evolve" && processedText.startsWith("Evolve")) {
+    processedText = processedText.replace(/^Evolve/, "<K>Evolve</K>");
+  }
+  if (key === "superEvolve" && processedText.startsWith("Super-Evolve")) {
+    processedText = processedText.replace(/^Super-Evolve/, "<K>Super-Evolve</K>");
+  }
 
   // --- Tokenizer that understands all formatting markers ---
   const tokenizerRegex = /(\*\*|_|<c>|<\/c>|<K>|<\/K>|----------|\n|\s+)/g;
@@ -483,8 +499,94 @@ async function drawTextBlock(key, box, x, startY) {
 
 // --- drawCard ---
 async function drawCard() {
-  const [bg, gem, frame] = await Promise.all([
-    getImage(assets.backgrounds[classSelect.value]),
+  // --- PRE-CALCULATION STEP (MOVED FROM BELOW) ---
+  // We must calculate the final height *before* drawing anything.
+
+  const textOrder = [
+    { key: "card", box: null },
+    { key: "evolve", box: "evolve" },
+    { key: "superEvolve", box: "superEvolve" },
+    { key: "crest", box: "crest" },
+    { key: "faith", box: "faith" }
+  ];
+  const boxX = 768;
+  const startY = 246;
+
+  // --- STEP 1: Calculate total content height first ---
+  let calculatedTotalY = startY;
+  for (const { key } of textOrder) {
+      if (!textInputs[key].value.trim()) continue;
+      // This function calculates the height of each text block
+      const blockHeight = await calculateTextBlockHeight(key); 
+      calculatedTotalY += blockHeight - 10;
+  }
+
+  // --- STEP 2 (PARTIAL): Calculate stretch amount ---
+  const illustrator = document.getElementById("illustratorName").value.trim();
+  const showBottomBar = wordCountCheckbox.checked || illustrator;
+
+  const defaultStretchThreshold = 900;
+  const bottomBarStretchThreshold = 825;
+  const stretchThreshold = showBottomBar ? bottomBarStretchThreshold : defaultStretchThreshold;
+  
+  // This is the crucial value: how many extra pixels we need
+  const stretchPixels = Math.max(0, calculatedTotalY - stretchThreshold);
+  const stretchCount = stretchPixels / 50;
+  const boxAsset = showBottomBar ? assets.boxes.text_box : assets.boxes.text_box_no_bottom;
+  
+  // We need to load the main box image to get its base height for the blur logic
+  const mainBoxImg = await getImage(boxAsset);
+  
+  // --- NEW: CANVAS RESIZING LOGIC ---
+  const baseHeight = 1080; // Your canvas's default height
+  const baseWidth = 1920;  // Your canvas's default width
+  const newHeight = baseHeight + stretchPixels;
+
+  // Only resize if necessary. This avoids clearing the canvas if the size is the same.
+  if (canvas.height !== newHeight) {
+    canvas.height = newHeight;
+  }
+  // (Optional) If you ever needed to stretch width, you'd do it here too.
+  if (canvas.width !== baseWidth) {
+    canvas.width = baseWidth;
+  }
+
+  // --- REGULAR DRAWING START ---
+  
+  // Clear the (potentially larger) canvas
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  
+  // !! IMPORTANT: Resizing the canvas resets all context properties.
+  // We must re-apply image smoothing.
+  ctx.imageSmoothingEnabled = true; 
+
+  // Load the background image
+  const bg = await getImage(assets.backgrounds[classSelect.value]);
+  // --- NEW 2-Slice Background Draw ---
+  const slicePointY = 1000;
+  // Ensure we don't try to slice past the image's actual height
+  const topHeight = Math.min(slicePointY, bg.height);
+  const bottomPartHeight = bg.height - topHeight; // e.g., 1080 - 1000 = 80
+
+  // 1. Draw the static top part (0-1000px)
+  ctx.drawImage(bg,
+    0, 0, bg.width, topHeight, // Source (top 1000px of image)
+    0, 0, bg.width, topHeight  // Destination (top 1000px of canvas)
+  );
+
+  // 2. Draw the stretched bottom part (1000-1080px)
+  if (bottomPartHeight > 0) {
+    // The new height for the bottom part is its original height + all stretch pixels
+    const newBottomHeight = bottomPartHeight + stretchPixels;
+    ctx.drawImage(bg,
+      0, topHeight, bg.width, bottomPartHeight, // Source (bottom 80px of image)
+      0, topHeight, bg.width, newBottomHeight   // Destination (fills from 1000px to end of canvas)
+    );
+  }
+  // --- END NEW 2-Slice ---
+
+  // Load remaining assets
+  const [gem, frame] = await Promise.all([
     getImage(assets.gems[classSelect.value]),
     getImage(
       assets[typeSelect.value.toLowerCase()][
@@ -495,33 +597,24 @@ async function drawCard() {
     )
   ]);
 
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.drawImage(bg, 0, 0, canvas.width, canvas.height);
-
   // === Masked Main Art ===
   if (uploadedArt) {
     const s = previewState.main; // Get the state
-    
-    // Calculate the final *scaled* dimensions of the entire image
     const dWidth = uploadedArt.width * s.scale;
     const dHeight = uploadedArt.height * s.scale;
 
-    // 1. Create a high-quality, pre-scaled bitmap of the *entire* image
     const bmp = await createImageBitmap(uploadedArt, 0, 0, uploadedArt.width, uploadedArt.height, {
-      resizeWidth: Math.round(dWidth),   // Use the dynamic scaled width
-      resizeHeight: Math.round(dHeight), // Use the dynamic scaled height
+      resizeWidth: Math.round(dWidth),
+      resizeHeight: Math.round(dHeight),
       resizeQuality: "high" 
     });
     
-    // 2. Create the rectangular clip path for the main art
     ctx.save();
     ctx.beginPath();
     ctx.rect(MAIN_ART_X, MAIN_ART_Y, MAIN_MASK_W, MAIN_MASK_H);
     ctx.closePath();
     ctx.clip();
     
-    // 3. Draw the pre-scaled bitmap, panned correctly
-    // (s.tx/s.ty are relative to the mask, so we add the mask's position)
     ctx.drawImage(
       bmp, 
       MAIN_ART_X + s.tx, 
@@ -529,74 +622,43 @@ async function drawCard() {
     );
     
     ctx.restore();
-    bmp.close(); // Clean up the bitmap from memory
+    bmp.close();
   }
 
   ctx.drawImage(gem, 398, 863);
   ctx.drawImage(frame, 48, 153);
 
   // --- TEXT DRAWING LOGIC ---
-  const boxX = 768;
-  const startY = 246;
-  const textOrder = [
-    { key: "card", box: null },
-    { key: "evolve", box: "evolve" },
-    { key: "superEvolve", box: "superEvolve" },
-    { key: "crest", box: "crest" },
-    { key: "faith", box: "faith" }
-  ];
-
-  // --- STEP 1: Calculate total content height first ---
-  let calculatedTotalY = startY;
-  for (const { key } of textOrder) {
-      if (!textInputs[key].value.trim()) continue;
-      const blockHeight = await calculateTextBlockHeight(key);
-      calculatedTotalY += blockHeight - 10;
-  }
-
-  // --- STEP 2: Draw the main text box with calculated stretch ---
-  const illustrator = document.getElementById("illustratorName").value.trim();
-  const showBottomBar = wordCountCheckbox.checked || illustrator;
-
-  // --- MODIFICATION: Set different thresholds ---
-  // This is the original threshold for the box *without* the bottom bar
-  const defaultStretchThreshold = 900;
-  // This is the new, *lower* threshold for the box *with* the bottom bar
-  const bottomBarStretchThreshold = 825; // You can adjust this value (e.g., 800, 825)
   
-  const stretchThreshold = showBottomBar ? bottomBarStretchThreshold : defaultStretchThreshold;
-  // --- END MODIFICATION ---
-  
-  const stretchPixels = Math.max(0, calculatedTotalY - stretchThreshold);
-  const stretchCount = stretchPixels / 50;
-  const boxAsset = showBottomBar ? assets.boxes.text_box : assets.boxes.text_box_no_bottom;
-  const mainBoxImg = await getImage(boxAsset);
+  // --- STEP 1 was moved to the top ---
 
-  // --- NEW: DYNAMIC BLUR LOGIC ADDED HERE ---
-  const textBoxX = 722; // The X position of the main text box graphic
-  const textBoxY = 206; // The Y position of the main text box graphic
+  // --- STEP 2: Draw the main text box (calculations were already done) ---
+  const textBoxX = 722;
+  const textBoxY = 206;
   
   // Calculate the final, stretched dimensions of the box
   const dynamicBoxWidth = mainBoxImg.width;
-  const dynamicBoxHeight = mainBoxImg.height + stretchPixels;
+  // We use the pre-calculated stretchPixels
+  const dynamicBoxHeight = mainBoxImg.height + stretchPixels; 
 
-  // Create an off-screen canvas for the blur effect
+  // --- DYNAMIC BLUR LOGIC ---
   const offCanvas = document.createElement("canvas");
   offCanvas.width = dynamicBoxWidth;
   offCanvas.height = dynamicBoxHeight;
   const offCtx = offCanvas.getContext("2d");
-
-  // Draw the section of the *background* (bg) that is behind the text box
-  offCtx.drawImage(bg, textBoxX, textBoxY, dynamicBoxWidth, dynamicBoxHeight, 0, 0, dynamicBoxWidth, dynamicBoxHeight);
   
-  // Apply blur to the off-screen canvas
+// Draw the section of the *main canvas* (which has the stretched bg) onto the off-screen canvas
+  offCtx.drawImage(canvas, textBoxX, textBoxY, dynamicBoxWidth, dynamicBoxHeight, 0, 0, dynamicBoxWidth, dynamicBoxHeight);
+  
   offCtx.filter = "blur(5px)";
-  offCtx.drawImage(offCanvas, 0, 0); // Re-draw on itself to apply the filter
+  offCtx.drawImage(offCanvas, 0, 0);
   
   // Draw the blurred patch onto the *main* canvas
   ctx.drawImage(offCanvas, textBoxX, textBoxY);
-  // --- END NEW BLUR LOGIC ---
+  // --- END BLUR LOGIC ---
 
+  // Draw the stretched box frame on top of the blur
+  // We use the pre-calculated stretchCount
   drawStretchBox(mainBoxImg, textBoxX, textBoxY, stretchCount, "main");
   
   // --- STEP 3: Now, draw all the text blocks on top ---
@@ -607,7 +669,6 @@ async function drawCard() {
     const isCrest = key === "crest";
     const isFaith = key === "faith";
     if (isCrest || isFaith) {
-      const t = getIconTransform(isCrest ? "crest" : "faith");
       const iconX = boxX + 120;
       const iconY = currentY + 32;
       const iconImg = isCrest ? crestArt : faithArt;
@@ -615,28 +676,22 @@ async function drawCard() {
       const nameValue = nameField ? nameField.value.trim() : "";
 
       if (iconImg && (isCrest || isFaith)) {
-        // Get the correct preview state
         const s = previewState[isCrest ? "crest" : "faith"];
-  
-        // Calculate the final *scaled* dimensions of the icon
         const dWidth = iconImg.width * s.scale;
         const dHeight = iconImg.height * s.scale;
 
-        // 1. Create a high-quality, pre-scaled bitmap
         const bmp = await createImageBitmap(iconImg, 0, 0, iconImg.width, iconImg.height, {
           resizeWidth: Math.round(dWidth),
           resizeHeight: Math.round(dHeight),
           resizeQuality: "high"
         });
   
-        // 2. Draw the bitmap, clipping it to a circle
         ctx.save();
         ctx.beginPath();
         ctx.arc(iconX + ICON_W / 2, iconY + ICON_H / 2, ICON_W / 2, 0, Math.PI * 2);
         ctx.closePath();
         ctx.clip();
         
-        // 3. Draw the pre-scaled, panned bitmap
         ctx.drawImage(
           bmp,
           iconX + s.tx,
@@ -644,7 +699,7 @@ async function drawCard() {
         );
         ctx.restore();
         
-        bmp.close(); // Clean up
+        bmp.close();
       }
       
       const defaultName = isCrest ? "Crest" : "Faith";
@@ -712,19 +767,16 @@ async function drawCard() {
   if (tokenCheckbox.checked) {
     ctx.font = "28px 'NotoSans'";
     ctx.textAlign = "right";
-    ctx.fillText("*This is a token card.", 1788, 1025);
+    ctx.fillText("*This is a token card.", 1788, canvas.height - 55);
   }
 
-  // --- MODIFICATION: Calculate dynamic Y for bottom bar text ---
-  // 'stretchPixels' was calculated in STEP 2 and is in scope here.
+  // This logic is now automatically correct because it uses stretchPixels
   const bottomBarBaseY = 911;
   const dynamicBottomBarY = bottomBarBaseY + stretchPixels;
-  // --- END MODIFICATION ---
 
   if (illustrator) {
     ctx.font = "28px 'NotoSans'";
     ctx.textAlign = "left";
-    // Use the new dynamic Y coordinate
     ctx.fillText(`Illustrator: ${illustrator}`, 790, dynamicBottomBarY);
   }
   if (wordCountCheckbox.checked) {
@@ -732,7 +784,6 @@ async function drawCard() {
     const wordCount = allText.split(/\s+/).filter(w => w.length).length;
     ctx.font = "28px 'NotoSans'";
     ctx.textAlign = "right";
-    // Use the new dynamic Y coordinate
     ctx.fillText(`Word count: ${wordCount}`, 1730, dynamicBottomBarY);
   }
   ctx.shadowColor = "transparent"; ctx.shadowBlur = 0;
@@ -749,7 +800,7 @@ function debouncedDrawCard() {
 
 [
   nameInput, traitInput, classSelect, raritySelect, costInput, attackInput, defenseInput,
-  tokenCheckbox, wordCountCheckbox,
+  tokenCheckbox, wordCountCheckbox, autoDividerCheckbox,
   ...Object.values(textInputs),
   document.getElementById("illustratorName"),
   document.getElementById("crestName"),
