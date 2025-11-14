@@ -155,7 +155,7 @@ Object.values(textInputs).forEach((textarea) => {
 
 // --- Text highlight keywords ---
 const HIGHLIGHT_KEYWORDS = [
-  "Fanfare","Last Words","Engage","Strike","Storm","Ambush","Bane","Drain","Ward","Rush","Overflow",
+  "Fanfare","Last Words","Engage","Strike","Follower Strike","Storm","Ambush","Bane","Drain","Ward","Rush","Overflow",
   "On Spellboost","Clash","Mode","Intimidate","Aura","Barrier","Fuse","Fused","Necromancy","Combo",
   "Earth Rite","Rally","Countdown","Reanimate","Earth Sigil","Crystallize","Crystallized","Invoke",
   "Invoked","Sanguine","Skybound Art","Super Skybound Art","Maneuver","Maneuverable","Maneuvering",
@@ -1293,3 +1293,4 @@ document.getElementById("previewBtn").addEventListener("click", async () => {
     btn.disabled = false;
   }
 });
+
