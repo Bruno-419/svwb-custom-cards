@@ -67,6 +67,7 @@ const defenseInput = document.getElementById("defenseValue");
 const tokenCheckbox = document.getElementById("tokenCheckbox");
 const wordCountCheckbox = document.getElementById("wordCountCheckbox");
 const autoDividerCheckbox = document.getElementById("autoDividerCheckbox");
+const liveWordCounter = document.getElementById("liveWordCounter");
 const textInputs = {
   card: document.getElementById("cardText"),
   evolve: document.getElementById("evolveText"),
@@ -126,6 +127,46 @@ function loadImage(src) {
   });
 }
 
+// --- NEW: Word Count Functions ---
+function calculateTotalWordCount() {
+  const allText = Object.values(textInputs).map(t => t.value).join(" ");
+
+  // 1. Split by whitespace first
+  const initialTokens = allText.split(/\s+/);
+
+  let wordCount = 0;
+
+  for (const token of initialTokens) {
+    // 2. Filter out empty strings and the divider
+    if (token.length === 0 || token === "----------") {
+      continue;
+    }
+
+    // 3. Split the token by hyphens and filter out any empty strings
+    // (e.g., "word-" would split into ["word", ""])
+    const hyphenatedParts = token.split('-').filter(p => p.length > 0);
+
+    // 4. Add the number of parts to the total count
+    // "X-cost" becomes ["X", "cost"] (length 2)
+    // "word" becomes ["word"] (length 1)
+    wordCount += hyphenatedParts.length;
+  }
+
+  return wordCount;
+}
+
+function updateLiveWordCount() {
+  if (!liveWordCounter) return; 
+
+  if (wordCountCheckbox.checked) {
+    const wordCount = calculateTotalWordCount();
+    liveWordCounter.textContent = `(${wordCount} ${wordCount === 1 ? 'word' : 'words'})`;
+    liveWordCounter.style.display = "inline"; 
+  } else {
+    liveWordCounter.style.display = "none"; 
+  }
+}
+
 const imageCache = {};
 async function getImage(src) {
   if (imageCache[src]) return imageCache[src];
@@ -149,13 +190,21 @@ Object.values(textInputs).forEach((textarea) => {
         textarea.selectionStart = textarea.selectionEnd = cursorPos + 10;
       }
     }
+    // --- NEW: Auto-resize logic ---
+    textarea.style.height = 'auto'; // Reset height to shrink
+    textarea.style.height = (textarea.scrollHeight) + 'px'; // Set to full content height
+    
+    // --- ADDED: Live word count update ---
+    updateLiveWordCount();
   });
 });
 
+// --- ADDED: Listener for the checkbox itself ---
+wordCountCheckbox.addEventListener("change", updateLiveWordCount);
 
 // --- Text highlight keywords ---
 const HIGHLIGHT_KEYWORDS = [
-  "Fanfare","Last Words","Engage","Strike","Follower Strike","Storm","Ambush","Bane","Drain","Ward","Rush","Overflow",
+  "Fanfare","Last Words","Engage","Strike","Storm","Ambush","Bane","Drain","Ward","Rush","Overflow",
   "On Spellboost","Clash","Mode","Intimidate","Aura","Barrier","Fuse","Fused","Necromancy","Combo",
   "Earth Rite","Rally","Countdown","Reanimate","Earth Sigil","Crystallize","Crystallized","Invoke",
   "Invoked","Sanguine","Skybound Art","Super Skybound Art","Maneuver","Maneuverable","Maneuvering",
@@ -512,11 +561,23 @@ async function drawCard() {
   const boxX = 768;
   const startY = 246;
 
+  // Get the current card type
+  const currentCardType = typeSelect.value.toLowerCase();
+  const isFollower = (currentCardType === 'follower');
+
   // --- STEP 1: Calculate total content height first ---
   let calculatedTotalY = startY;
   for (const { key } of textOrder) {
-      if (!textInputs[key].value.trim()) continue;
-      // This function calculates the height of each text block
+      const textValue = textInputs[key].value.trim();
+      if (!textValue) continue; // Skip if empty
+
+      // NEW: Skip Evolve/Super-Evolve if not a Follower
+      const isEvolveBlock = (key === 'evolve' || key === 'superEvolve');
+      if (isEvolveBlock && !isFollower) {
+          continue;
+      }
+
+      // This code only runs if the block is non-empty AND valid for the type
       const blockHeight = await calculateTextBlockHeight(key); 
       calculatedTotalY += blockHeight - 10;
   }
@@ -664,7 +725,16 @@ async function drawCard() {
   // --- STEP 3: Now, draw all the text blocks on top ---
   let currentY = startY;
   for (const { key, box } of textOrder) {
-    if (!textInputs[key].value.trim()) continue;
+    const textValue = textInputs[key].value.trim();
+    if (!textValue) continue; // Skip if empty
+
+    // NEW: Skip Evolve/Super-Evolve if not a Follower
+    const isEvolveBlock = (key === 'evolve' || key === 'superEvolve');
+    if (isEvolveBlock && !isFollower) {
+      continue;
+    }
+
+    // This code only runs if the block is non-empty AND valid for the type
     const blockHeight = await drawTextBlock(key, box, boxX, currentY);
     const isCrest = key === "crest";
     const isFaith = key === "faith";
@@ -780,8 +850,7 @@ async function drawCard() {
     ctx.fillText(`Illustrator: ${illustrator}`, 790, dynamicBottomBarY);
   }
   if (wordCountCheckbox.checked) {
-    const allText = Object.values(textInputs).map(t => t.value).join(" ");
-    const wordCount = allText.split(/\s+/).filter(w => w.length).length;
+    const wordCount = calculateTotalWordCount();
     ctx.font = "28px 'NotoSans'";
     ctx.textAlign = "right";
     ctx.fillText(`Word count: ${wordCount}`, 1730, dynamicBottomBarY);
@@ -790,30 +859,31 @@ async function drawCard() {
 }
 
 // --- Live updates with Debouncing ---
-let redrawDebounceTimer = null;
-function debouncedDrawCard() {
-  clearTimeout(redrawDebounceTimer);
-  redrawDebounceTimer = setTimeout(() => {
-    safeDrawCard();
-  }, 250); // 250ms delay before redrawing
-}
+//let redrawDebounceTimer = null;
+//function debouncedDrawCard() {
+//  clearTimeout(redrawDebounceTimer);
+//  redrawDebounceTimer = setTimeout(() => {
+//    safeDrawCard();
+//  }, 250); // 250ms delay before redrawing
+//}
 
-[
-  nameInput, traitInput, classSelect, raritySelect, costInput, attackInput, defenseInput,
-  tokenCheckbox, wordCountCheckbox, autoDividerCheckbox,
-  ...Object.values(textInputs),
-  document.getElementById("illustratorName"),
-  document.getElementById("crestName"),
-  document.getElementById("faithName")
-].forEach(el => el?.addEventListener("input", debouncedDrawCard));
+//[
+//  nameInput, traitInput, classSelect, raritySelect, costInput, attackInput, defenseInput,
+//  tokenCheckbox, wordCountCheckbox, autoDividerCheckbox,
+//  ...Object.values(textInputs),
+//  document.getElementById("illustratorName"),
+//  document.getElementById("crestName"),
+//  document.getElementById("faithName")
+//].forEach(el => el?.addEventListener("input", debouncedDrawCard));
 
 // --- Prevent overlapping draws ---
-let isDrawing = false;
-async function safeDrawCard() {
-  if (isDrawing) return;
-  isDrawing = true;
-  try { await drawCard(); } catch (err) { console.error("drawCard error:", err); } finally { isDrawing = false; }
-}
+//let isDrawing = false;
+//async function safeDrawCard() {
+//  if (isDrawing) return;
+//  isDrawing = true;
+//  try { await drawCard(); } catch (err) { console.error("drawCard error:", err); } finally { isDrawing = false; }
+//}
+
 
 /***********************
   PREVIEW COLUMN HANDLERS (clamped)
@@ -1184,6 +1254,7 @@ document.querySelectorAll(".text-toolbar button").forEach((button) => {
     if (format === "bold") { openTag = "**"; closeTag = "**"; }
     else if (format === "italic") { openTag = "_"; closeTag = "_"; }
     else if (format === "color") { openTag = "<c>"; closeTag = "</c>"; }
+    else if (format === "all") { openTag = "**_<c>"; closeTag = "</c>_**"; }
     else return;
 
     // If text selected -> wrap (toggle removal if already wrapped exactly)
@@ -1224,7 +1295,12 @@ document.querySelectorAll(".text-toolbar button").forEach((button) => {
 
 
 // initial draw
-document.fonts.ready.then(() => setTimeout(updateAll, 60));
+document.fonts.ready.then(() => {
+  setTimeout(() => {
+    updateAll();
+    updateLiveWordCount(); // <-- ADDED: Call on load
+  }, 60);
+});
 
 // REPLACE the existing downloadBtn listener with this:
 document.getElementById("downloadBtn").addEventListener("click", async () => { // <-- Made async
@@ -1293,4 +1369,8 @@ document.getElementById("previewBtn").addEventListener("click", async () => {
     btn.disabled = false;
   }
 });
+
+
+
+
 
