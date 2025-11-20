@@ -42,7 +42,7 @@
   <header>
     <h1>Shadowverse: Worlds Beyond Card Generator</h1>
     <p class="subheader">
-      V1.6.1 — May not work on all browsers, probably works in Chrome/Firefox.
+      V1.6.2 — May not work on all browsers, probably works in Chrome/Firefox.
       Enable JavaScript or this website will explode!
     </p>
 
@@ -107,7 +107,8 @@
         <label class="field">
           <span class="field-label">Rarity</span>
           <select id="cardRarity">
-            <option>Legendary</option>
+            <option>Signature</option>
+            <option selected>Legendary</option>
             <option>Gold</option>
             <option>Silver</option>
             <option>Bronze</option>
@@ -140,6 +141,7 @@
             <span id="liveWordCounter" style="display: none; margin-left: 8px; color: var(--muted); font-size: 12px;">(0 words)</span>
           </label>
           <label class="checkbox-inline"><input type="checkbox" id="autoDividerCheckbox" checked> <span>Auto-dividers</span></label>
+          <label class="checkbox-inline"><input type="checkbox" id="saveCardOnlyCheckbox"> <span>Save card image only</span></label>
         </div>
 
         <label class="field">
@@ -254,20 +256,47 @@
 
   <script>
     const cardTypeSelect = document.getElementById('cardType');
+    const cardRaritySelect = document.getElementById('cardRarity');
     const statExtraFields = document.getElementById('statExtraFields');
     const evolveTextField = document.getElementById('evolveTextField');
     const superEvolveTextField = document.getElementById('superEvolveTextField');
 
     function toggleFieldVisibility() {
-      const value = cardTypeSelect.value.toLowerCase();
-      const isFollower = (value === 'follower');
+      const typeValue = cardTypeSelect.value.toLowerCase();
+      const isFollower = (typeValue === 'follower');
+      const isAmulet = (typeValue === 'amulet');
 
-      // Toggle Attack/Defense fields (uses visibility)
+      // 1. Toggle Attack/Defense fields
       statExtraFields.style.visibility = isFollower ? 'visible' : 'hidden';
 
-      // Toggle Evolve/Super-Evolve fields (uses display to reclaim space)
+      // 2. Toggle Evolve/Super-Evolve fields
       evolveTextField.style.display = isFollower ? 'block' : 'none';
       superEvolveTextField.style.display = isFollower ? 'block' : 'none';
+
+      // 3. Handle Signature Rarity Logic
+      // Find the "Signature" option within the rarity dropdown
+      let signatureOption = null;
+      for (const option of cardRaritySelect.options) {
+        if (option.value === "Signature") {
+          signatureOption = option;
+          break;
+        }
+      }
+
+      if (signatureOption) {
+        if (isAmulet) {
+          // If Amulet, disable Signature
+          signatureOption.disabled = true;
+          
+          // If Signature was currently selected, switch to something safe (e.g., Legendary)
+          if (cardRaritySelect.value === "Signature") {
+            cardRaritySelect.value = "Legendary";
+          }
+        } else {
+          // If Follower or Spell, enable Signature
+          signatureOption.disabled = false;
+        }
+      }
     }
 
     // Run on page load
@@ -279,4 +308,7 @@
   
 </body>
 </html>
+
+
+
 
