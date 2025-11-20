@@ -4,19 +4,22 @@ const assets = {
     "assets/follower/follower_bronze.png",
     "assets/follower/follower_silver.png",
     "assets/follower/follower_gold.png",
-    "assets/follower/follower_legendary.png"
+    "assets/follower/follower_legendary.png",
+    "assets/follower/follower_signature.png"
   ],
   spell: [
     "assets/spell/spell_bronze.png",
     "assets/spell/spell_silver.png",
     "assets/spell/spell_gold.png",
-    "assets/spell/spell_legendary.png"
+    "assets/spell/spell_legendary.png",
+    "assets/spell/spell_signature.png"
   ],
   amulet: [
     "assets/amulet/amulet_bronze.png",
     "assets/amulet/amulet_silver.png",
     "assets/amulet/amulet_gold.png",
-    "assets/amulet/amulet_legendary.png"
+    "assets/amulet/amulet_legendary.png",
+    "assets/amulet/amulet_signature.png"
   ],
   backgrounds: {
     Neutral: "assets/backgrounds/background_Neutral.png",
@@ -69,6 +72,7 @@ const defenseInput = document.getElementById("defenseValue");
 const tokenCheckbox = document.getElementById("tokenCheckbox");
 const wordCountCheckbox = document.getElementById("wordCountCheckbox");
 const autoDividerCheckbox = document.getElementById("autoDividerCheckbox");
+const saveCardOnlyCheckbox = document.getElementById("saveCardOnlyCheckbox");
 const liveWordCounter = document.getElementById("liveWordCounter");
 const textInputs = {
   card: document.getElementById("cardText"),
@@ -209,6 +213,7 @@ Object.values(textInputs).forEach((textarea) => {
 });
 
 wordCountCheckbox.addEventListener("change", updateLiveWordCount);
+saveCardOnlyCheckbox.addEventListener("change", () => drawCard());
 
 // --- Text highlight keywords ---
 const HIGHLIGHT_KEYWORDS = [
@@ -512,74 +517,96 @@ async function drawCard() {
 
   const currentCardType = typeSelect.value.toLowerCase();
   const isFollower = (currentCardType === 'follower');
+  const saveCardOnly = saveCardOnlyCheckbox.checked; 
 
-  let calculatedTotalY = startY;
-  for (const { key } of textOrder) {
-      const textValue = textInputs[key].value.trim();
-      if (!textValue) continue; 
+  // 1. Calculate Height / Stretch
+  let stretchPixels = 0;
+  
+  if (!saveCardOnly) {
+      let calculatedTotalY = startY;
+      for (const { key } of textOrder) {
+          const textValue = textInputs[key].value.trim();
+          if (!textValue) continue; 
 
-      const isEvolveBlock = (key === 'evolve' || key === 'superEvolve');
-      if (isEvolveBlock && !isFollower) {
-          continue;
+          const isEvolveBlock = (key === 'evolve' || key === 'superEvolve');
+          if (isEvolveBlock && !isFollower) {
+              continue;
+          }
+          const blockHeight = await calculateTextBlockHeight(key); 
+          calculatedTotalY += blockHeight - 10;
       }
-      const blockHeight = await calculateTextBlockHeight(key); 
-      calculatedTotalY += blockHeight - 10;
+
+      const illustrator = document.getElementById("illustratorName").value.trim();
+      const showBottomBar = wordCountCheckbox.checked || illustrator;
+
+      const defaultStretchThreshold = 900;
+      const bottomBarStretchThreshold = 825;
+      const stretchThreshold = showBottomBar ? bottomBarStretchThreshold : defaultStretchThreshold;
+      
+      stretchPixels = Math.max(0, calculatedTotalY - stretchThreshold);
   }
 
-  const illustrator = document.getElementById("illustratorName").value.trim();
-  const showBottomBar = wordCountCheckbox.checked || illustrator;
-
-  const defaultStretchThreshold = 900;
-  const bottomBarStretchThreshold = 825;
-  const stretchThreshold = showBottomBar ? bottomBarStretchThreshold : defaultStretchThreshold;
-  
-  const stretchPixels = Math.max(0, calculatedTotalY - stretchThreshold);
   const stretchCount = stretchPixels / 50;
-  const boxAsset = showBottomBar ? assets.boxes.text_box : assets.boxes.text_box_no_bottom;
+  const boxAsset = (wordCountCheckbox.checked || document.getElementById("illustratorName").value.trim()) ? assets.boxes.text_box : assets.boxes.text_box_no_bottom;
   
   const mainBoxImg = await getImage(boxAsset);
   
+  // 2. Set Canvas Dimensions
   const baseHeight = 1080; 
-  const baseWidth = 1920;  
-  const newHeight = baseHeight + stretchPixels;
+  const baseWidth = 1920;
+  
+  // UPDATED: Set explicit dimensions for Card Only mode
+  const newWidth = saveCardOnly ? 729 : baseWidth;
+  const newHeight = saveCardOnly ? 882 : (baseHeight + stretchPixels);
 
   if (canvas.height !== newHeight) {
     canvas.height = newHeight;
   }
-  if (canvas.width !== baseWidth) {
-    canvas.width = baseWidth;
+  if (canvas.width !== newWidth) {
+    canvas.width = newWidth;
   }
 
+  // 3. Clear Canvas
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   
   ctx.imageSmoothingEnabled = true;
-  // === FIX: Set quality again after resize ===
   ctx.imageSmoothingQuality = "high";
 
-  const bg = await getImage(assets.backgrounds[classSelect.value]);
-  const slicePointY = 1000;
-  const topHeight = Math.min(slicePointY, bg.height);
-  const bottomPartHeight = bg.height - topHeight;
-
-  ctx.drawImage(bg, 0, 0, bg.width, topHeight, 0, 0, bg.width, topHeight);
-
-  if (bottomPartHeight > 0) {
-    const newBottomHeight = bottomPartHeight + stretchPixels;
-    ctx.drawImage(bg, 0, topHeight, bg.width, bottomPartHeight, 0, topHeight, bg.width, newBottomHeight);
+  // === START TRANSLATION ===
+  // If saving card only, shift the context UP so the card (which starts at Y=153) hits the top (Y=0)
+  ctx.save();
+  if (saveCardOnly) {
+    ctx.translate(-48, -153);
   }
 
+  // 4. Draw Background (SKIP if Save Card Only)
+  if (!saveCardOnly) {
+      const bg = await getImage(assets.backgrounds[classSelect.value]);
+      const slicePointY = 1000;
+      const topHeight = Math.min(slicePointY, bg.height);
+      const bottomPartHeight = bg.height - topHeight;
+
+      ctx.drawImage(bg, 0, 0, bg.width, topHeight, 0, 0, bg.width, topHeight);
+
+      if (bottomPartHeight > 0) {
+        const newBottomHeight = bottomPartHeight + stretchPixels;
+        ctx.drawImage(bg, 0, topHeight, bg.width, bottomPartHeight, 0, topHeight, bg.width, newBottomHeight);
+      }
+  }
+
+  // Load Assets
   const [gem, frame] = await Promise.all([
     getImage(assets.gems[classSelect.value]),
     getImage(
       assets[typeSelect.value.toLowerCase()][
-        ["bronze", "silver", "gold", "legendary"].indexOf(
+        ["bronze", "silver", "gold", "legendary", "signature"].indexOf(
           raritySelect.value.toLowerCase()
         )
       ]
     )
   ]);
 
-  // === Masked Main Art ===
+  // 5. Masked Main Art
   if (uploadedArt) {
     const s = previewState.main;
     const dWidth = uploadedArt.width * s.scale;
@@ -606,114 +633,114 @@ async function drawCard() {
   ctx.drawImage(gem, 398, 863);
   ctx.drawImage(frame, 48, 153);
 
-  const textBoxX = 722;
-  const textBoxY = 206;
-  
-  const dynamicBoxWidth = mainBoxImg.width;
-  const dynamicBoxHeight = mainBoxImg.height + stretchPixels; 
-
-  const offCanvas = document.createElement("canvas");
-  offCanvas.width = dynamicBoxWidth;
-  offCanvas.height = dynamicBoxHeight;
-  const offCtx = offCanvas.getContext("2d");
-  
-  offCtx.drawImage(canvas, textBoxX, textBoxY, dynamicBoxWidth, dynamicBoxHeight, 0, 0, dynamicBoxWidth, dynamicBoxHeight);
-  
-  offCtx.filter = "blur(5px)";
-  offCtx.drawImage(offCanvas, 0, 0);
-  
-  ctx.drawImage(offCanvas, textBoxX, textBoxY);
-
-  drawStretchBox(mainBoxImg, textBoxX, textBoxY, stretchCount, "main");
-  
-  let currentY = startY;
-  for (const { key, box } of textOrder) {
-    const textValue = textInputs[key].value.trim();
-    if (!textValue) continue; 
-
-    const isEvolveBlock = (key === 'evolve' || key === 'superEvolve');
-    if (isEvolveBlock && !isFollower) {
-      continue;
-    }
-
-    const blockHeight = await drawTextBlock(key, box, boxX, currentY);
-    const isCrest = key === "crest";
-    const isFaith = key === "faith";
-    if (isCrest || isFaith) {
-      const iconX = boxX + 120;
-      const iconY = currentY + 32;
-      const iconImg = isCrest ? crestArt : faithArt;
-      const nameField = document.getElementById(isCrest ? "crestName" : "faithName");
-      const nameValue = nameField ? nameField.value.trim() : "";
-
-      if (iconImg && (isCrest || isFaith)) {
-        const s = previewState[isCrest ? "crest" : "faith"];
-        
-        // 1. Calculate dimensions
-        const dWidth = iconImg.width * s.scale;
-        const dHeight = iconImg.height * s.scale;
-
-        // 2. Create high-quality bitmap (as before)
-        const bmp = await createImageBitmap(iconImg, 0, 0, iconImg.width, iconImg.height, {
-          resizeWidth: Math.round(dWidth),
-          resizeHeight: Math.round(dHeight),
-          resizeQuality: "high"
-        });
-
-        // 3. Create a temporary offscreen canvas to apply the sharpening filter
-        const tempCanvas = document.createElement('canvas');
-        tempCanvas.width = Math.round(dWidth);
-        tempCanvas.height = Math.round(dHeight);
-        const tempCtx = tempCanvas.getContext('2d');
-        
-        // Draw the bitmap to the temp canvas
-        tempCtx.drawImage(bmp, 0, 0);
-        
-        // 4. Apply Manual Sharpening
-        // Strength of 0.15 is "slightly less blurry" without being over-fried.
-        applySharpen(tempCtx, tempCanvas.width, tempCanvas.height, 0.25);
-
-        // 5. Draw the sharpened result to the main canvas
-        ctx.save();
-        ctx.beginPath();
-        ctx.arc(iconX + ICON_W / 2, iconY + ICON_H / 2, ICON_W / 2, 0, Math.PI * 2);
-        ctx.closePath();
-        ctx.clip();
-        
-        // Draw from temp canvas (which accounts for s.tx/ty shifts in the draw call)
-        // Wait, s.tx/ty shifts the *position* of the image relative to the circle mask.
-        // The bitmap contains the *whole* scaled image.
-        // So we draw the temp canvas at the offset location.
-        ctx.drawImage(tempCanvas, iconX + s.tx, iconY + s.ty);
-        
-        ctx.restore();
-        bmp.close();
-      }
+  // 6. Text Box & Text (SKIP if Save Card Only)
+  if (!saveCardOnly) {
+      const textBoxX = 722;
+      const textBoxY = 206;
       
-      const defaultName = isCrest ? "Crest" : "Faith";
-      const displayName = nameValue || defaultName;
-      if (displayName) {
-        ctx.save();
-        ctx.font = "33px 'Memento'";
-        ctx.fillStyle = "#f3d87d";
-        ctx.textAlign = "left";
-        ctx.shadowColor = "black";
-        ctx.shadowBlur = 4;
-        ctx.fillText(displayName, iconX + ICON_W + 17, iconY + ICON_H / 2 + 10);
-        ctx.restore();
+      const dynamicBoxWidth = mainBoxImg.width;
+      const dynamicBoxHeight = mainBoxImg.height + stretchPixels; 
+
+      const offCanvas = document.createElement("canvas");
+      offCanvas.width = dynamicBoxWidth;
+      offCanvas.height = dynamicBoxHeight;
+      const offCtx = offCanvas.getContext("2d");
+      
+      offCtx.drawImage(canvas, textBoxX, textBoxY, dynamicBoxWidth, dynamicBoxHeight, 0, 0, dynamicBoxWidth, dynamicBoxHeight);
+      
+      offCtx.filter = "blur(5px)";
+      offCtx.drawImage(offCanvas, 0, 0);
+      
+      ctx.drawImage(offCanvas, textBoxX, textBoxY);
+
+      drawStretchBox(mainBoxImg, textBoxX, textBoxY, stretchCount, "main");
+      
+      let currentY = startY;
+      for (const { key, box } of textOrder) {
+        const textValue = textInputs[key].value.trim();
+        if (!textValue) continue; 
+
+        const isEvolveBlock = (key === 'evolve' || key === 'superEvolve');
+        if (isEvolveBlock && !isFollower) {
+          continue;
+        }
+
+        const blockHeight = await drawTextBlock(key, box, boxX, currentY);
+        
+        // Draw Icons (Crest/Faith)
+        const isCrest = key === "crest";
+        const isFaith = key === "faith";
+        if (isCrest || isFaith) {
+          const iconX = boxX + 120;
+          const iconY = currentY + 32;
+          const iconImg = isCrest ? crestArt : faithArt;
+          const nameField = document.getElementById(isCrest ? "crestName" : "faithName");
+          const nameValue = nameField ? nameField.value.trim() : "";
+
+          if (iconImg) {
+            const s = previewState[isCrest ? "crest" : "faith"];
+            const dWidth = iconImg.width * s.scale;
+            const dHeight = iconImg.height * s.scale;
+
+            const bmp = await createImageBitmap(iconImg, 0, 0, iconImg.width, iconImg.height, {
+              resizeWidth: Math.round(dWidth),
+              resizeHeight: Math.round(dHeight),
+              resizeQuality: "high"
+            });
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = Math.round(dWidth);
+            tempCanvas.height = Math.round(dHeight);
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCtx.drawImage(bmp, 0, 0);
+            applySharpen(tempCtx, tempCanvas.width, tempCanvas.height, 0.25);
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(iconX + ICON_W / 2, iconY + ICON_H / 2, ICON_W / 2, 0, Math.PI * 2);
+            ctx.closePath();
+            ctx.clip();
+            ctx.drawImage(tempCanvas, iconX + s.tx, iconY + s.ty);
+            ctx.restore();
+            bmp.close();
+          }
+          
+          const defaultName = isCrest ? "Crest" : "Faith";
+          const displayName = nameValue || defaultName;
+          if (displayName) {
+            ctx.save();
+            ctx.font = "33px 'Memento'";
+            ctx.fillStyle = "#f3d87d";
+            ctx.textAlign = "left";
+            ctx.shadowColor = "black";
+            ctx.shadowBlur = 4;
+            ctx.fillText(displayName, iconX + ICON_W + 17, iconY + ICON_H / 2 + 10);
+            ctx.restore();
+          }
+        }
+        currentY += blockHeight - 10;
       }
-    }
-    currentY += blockHeight - 10;
   }
 
+  // 7. Stats & Name
   ctx.shadowColor = "black";
   ctx.shadowBlur = 6;
   ctx.fillStyle = "#efeee9";
-  ctx.font = "56px 'Memento'";
-  ctx.textAlign = "left";
+  
   const nameText = nameInput.value.trim() || "Unnamed Card";
-  ctx.fillText(nameText, 163, 150);
 
+  // UPDATED: Only draw the Top Header Name/Trait if NOT in "Card Only" mode
+  if (!saveCardOnly) {
+    ctx.font = "56px 'Memento'";
+    ctx.textAlign = "left";
+    ctx.fillText(nameText, 163, 150);
+
+    ctx.font = "33px 'Memento'";
+    ctx.textAlign = "left";
+    const traitText = traitInput.value.trim() || "—";
+    ctx.fillText(traitText, 1306, 147);
+  }
+
+  // Draw the Secondary Name (The one inside the card frame)
   let secondaryFontSize = 42;
   ctx.font = `${secondaryFontSize}px 'Memento'`;
   let textWidth = ctx.measureText(nameText).width;
@@ -731,11 +758,6 @@ async function drawCard() {
   ctx.textAlign = "center";
   ctx.fillText(nameText, 455, secondaryNameY);
 
-  ctx.font = "33px 'Memento'";
-  ctx.textAlign = "left";
-  const traitText = traitInput.value.trim() || "—";
-  ctx.fillText(traitText, 1306, 147);
-
   const numberSpacing = -5;
   const numberFont = 'Sv_numbers';
   const costMaxWidth = 95;
@@ -751,26 +773,34 @@ async function drawCard() {
   }
   ctx.letterSpacing = "0px";
 
-  if (tokenCheckbox.checked) {
-    ctx.font = "28px 'NotoSans'";
-    ctx.textAlign = "right";
-    ctx.fillText("*This is a token card.", 1788, canvas.height - 55);
-  }
+  // Footer Elements (Skip if Save Card Only)
+  if (!saveCardOnly) {
+      if (tokenCheckbox.checked) {
+        ctx.font = "28px 'NotoSans'";
+        ctx.textAlign = "right";
+        ctx.fillText("*This is a token card.", 1788, canvas.height - 55);
+      }
 
-  const bottomBarBaseY = 911;
-  const dynamicBottomBarY = bottomBarBaseY + stretchPixels;
+      const bottomBarBaseY = 911;
+      const dynamicBottomBarY = bottomBarBaseY + stretchPixels;
 
-  if (illustrator) {
-    ctx.font = "28px 'NotoSans'";
-    ctx.textAlign = "left";
-    ctx.fillText(`Illustrator: ${illustrator}`, 790, dynamicBottomBarY);
+      const illustrator = document.getElementById("illustratorName").value.trim();
+      if (illustrator) {
+        ctx.font = "28px 'NotoSans'";
+        ctx.textAlign = "left";
+        ctx.fillText(`Illustrator: ${illustrator}`, 790, dynamicBottomBarY);
+      }
+      if (wordCountCheckbox.checked) {
+        const wordCount = calculateTotalWordCount();
+        ctx.font = "28px 'NotoSans'";
+        ctx.textAlign = "right";
+        ctx.fillText(`Word count: ${wordCount}`, 1730, dynamicBottomBarY);
+      }
   }
-  if (wordCountCheckbox.checked) {
-    const wordCount = calculateTotalWordCount();
-    ctx.font = "28px 'NotoSans'";
-    ctx.textAlign = "right";
-    ctx.fillText(`Word count: ${wordCount}`, 1730, dynamicBottomBarY);
-  }
+  
+  // === END TRANSLATION ===
+  ctx.restore();
+  
   ctx.shadowColor = "transparent"; ctx.shadowBlur = 0;
 }
 
@@ -1176,13 +1206,28 @@ document.fonts.ready.then(() => {
   }, 60);
 });
 
+// --- Button Event Listeners (Updated with Font Loading) ---
+
 document.getElementById("downloadBtn").addEventListener("click", async () => { 
   const btn = document.getElementById("downloadBtn");
   const originalText = btn.textContent;
-  btn.textContent = "Generating...";
+  
+  // Visual feedback that we are waiting for fonts/assets
+  btn.textContent = "Loading assets...";
   btn.disabled = true;
 
   try {
+    // === FIX: Force wait for fonts to load before drawing ===
+    // This ensures the Canvas has access to the .ttf files
+    await document.fonts.ready;
+    await Promise.all([
+        document.fonts.load("60px 'Memento'"),
+        document.fonts.load("60px 'Sv_numbers'"),
+        document.fonts.load("30px 'NotoSans'")
+    ]);
+
+    btn.textContent = "Generating...";
+    
     await drawCard(); 
     
     const canvas = document.getElementById("previewCanvas");
@@ -1203,10 +1248,22 @@ document.getElementById("downloadBtn").addEventListener("click", async () => {
 document.getElementById("previewBtn").addEventListener("click", async () => {
   const btn = document.getElementById("previewBtn");
   const originalText = btn.textContent;
-  btn.textContent = "Generating...";
+  
+  // Visual feedback
+  btn.textContent = "Loading assets...";
   btn.disabled = true;
 
   try {
+    // === FIX: Force wait for fonts to load before drawing ===
+    await document.fonts.ready;
+    await Promise.all([
+        document.fonts.load("60px 'Memento'"),
+        document.fonts.load("60px 'Sv_numbers'"),
+        document.fonts.load("30px 'NotoSans'")
+    ]);
+
+    btn.textContent = "Generating...";
+
     await drawCard(); 
     
     const canvas = document.getElementById("previewCanvas");
@@ -1230,6 +1287,13 @@ document.getElementById("previewBtn").addEventListener("click", async () => {
     btn.disabled = false;
   }
 });
+
+
+
+
+
+
+
 
 
 
