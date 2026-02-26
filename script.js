@@ -49,7 +49,9 @@ const assets = {
     evolve: "assets/boxes/box_evolve.png",
     superEvolve: "assets/boxes/box_super_evolve.png",
     crest: "assets/boxes/box_crest.png",
-    faith: "assets/boxes/box_faith.png"
+    faith: "assets/boxes/box_faith.png",
+    accelerate: "assets/boxes/box_accelerate.png",
+    crystallize: "assets/boxes/box_crystallize.png"
   }
 };
 
@@ -79,7 +81,9 @@ const textInputs = {
   evolve: document.getElementById("evolveText"),
   superEvolve: document.getElementById("superEvolveText"),
   crest: document.getElementById("crestText"),
-  faith: document.getElementById("faithText")
+  faith: document.getElementById("faithText"),
+  accelerate: document.getElementById("accelerateText"),
+  crystallize: document.getElementById("crystallizeText")
 };
 
 // --- Crest and Faith uploads ---
@@ -89,6 +93,82 @@ const faithArtUpload = document.getElementById("faithArtUpload");
 let uploadedArt = null;
 let crestArt = null;
 let faithArt = null;
+
+// --- Helper Functions ---
+
+function loadImage(src) {
+  return new Promise((res, rej) => {
+    const img = new Image();
+    img.onload = () => res(img);
+    img.onerror = rej;
+    img.src = src;
+  });
+}
+
+// Sharpening Helper
+function applySharpen(ctx, w, h, amount) {
+  const imgData = ctx.getImageData(0, 0, w, h);
+  const data = imgData.data;
+  const copy = new Uint8ClampedArray(data);
+
+  for (let y = 1; y < h - 1; y++) {
+    for (let x = 1; x < w - 1; x++) {
+       const i = (y * w + x) * 4;
+       const up = ((y - 1) * w + x) * 4;
+       const down = ((y + 1) * w + x) * 4;
+       const left = (y * w + (x - 1)) * 4;
+       const right = (y * w + (x + 1)) * 4;
+
+       for (let c = 0; c < 3; c++) {
+         const edge = 4 * copy[i + c] - copy[up + c] - copy[down + c] - copy[left + c] - copy[right + c];
+         data[i + c] = copy[i + c] + amount * edge;
+       }
+    }
+  }
+  ctx.putImageData(imgData, 0, 0);
+}
+
+// Hyphen Handling Helpers
+function getPartsAndWidths(text, fontSize, baseFont = "Memento", hyphenFont = "Roboto") {
+  const parts = text.split(/(-)/g);
+  let totalWidth = 0;
+  // Define extra spacing for the hyphen in titles
+  const hyphenPadding = 8; 
+
+  const widths = parts.map(part => {
+    ctx.font = `${fontSize}px '${part === "-" ? hyphenFont : baseFont}'`;
+    let w = ctx.measureText(part).width;
+    // If it's a hyphen, add the padding to the width calculation
+    if (part === "-") w += hyphenPadding;
+    totalWidth += w;
+    return w;
+  });
+  return { parts, widths, totalWidth };
+}
+
+function drawTextWithHyphenSwap(text, x, y, fontSize, align = "left", baseFont = "Memento", hyphenFont = "Roboto") {
+  ctx.save();
+  ctx.textAlign = "left"; 
+  
+  const { parts, widths, totalWidth } = getPartsAndWidths(text, fontSize, baseFont, hyphenFont);
+  
+  let currentX = x;
+  if (align === "center") currentX = x - (totalWidth / 2);
+  else if (align === "right") currentX = x - totalWidth;
+  
+  parts.forEach((part, i) => {
+    ctx.font = `${fontSize}px '${part === "-" ? hyphenFont : baseFont}'`;
+    
+    // If it's a hyphen, nudge it to the right so it is centered in the extra space
+    let drawX = currentX;
+    if (part === "-") drawX += 4; // Half of the padding defined in getPartsAndWidths
+
+    ctx.fillText(part, drawX, y);
+    currentX += widths[i];
+  });
+  
+  ctx.restore();
+}
 
 /**
  * Draws a number, scaling down the font size to fit a max width.
@@ -110,52 +190,6 @@ function drawScaledNumber(text, x, y, maxFontSize, maxWidth, fontFace, letterSpa
   const yNudge = (maxFontSize - fontSize) * yNudgeCoefficient;
   ctx.fillText(text, x, y + yNudge);
   ctx.letterSpacing = "0px";
-}
-
-// --- Helpers ---
-function loadImage(src) {
-  return new Promise((res, rej) => {
-    const img = new Image();
-    img.onload = () => res(img);
-    img.onerror = rej;
-    img.src = src;
-  });
-}
-
-// --- NEW: Sharpening Helper Function ---
-// Applies a convolution filter to sharpen the image data on a canvas context
-function applySharpen(ctx, w, h, amount) {
-  const imgData = ctx.getImageData(0, 0, w, h);
-  const data = imgData.data;
-  const copy = new Uint8ClampedArray(data); // Copy for reference
-
-  for (let y = 1; y < h - 1; y++) {
-    for (let x = 1; x < w - 1; x++) {
-       const i = (y * w + x) * 4;
-       
-       // Neighbors for convolution
-       const up = ((y - 1) * w + x) * 4;
-       const down = ((y + 1) * w + x) * 4;
-       const left = (y * w + (x - 1)) * 4;
-       const right = (y * w + (x + 1)) * 4;
-
-       // Simple Sharpen Kernel Logic:
-       // pixel = pixel + amount * (4 * pixel - up - down - left - right)
-       // This adds the "edges" back into the image to crisp it up.
-       
-       for (let c = 0; c < 3; c++) { // RGB channels
-         const edge = 4 * copy[i + c] 
-                      - copy[up + c] 
-                      - copy[down + c] 
-                      - copy[left + c] 
-                      - copy[right + c];
-         
-         data[i + c] = copy[i + c] + amount * edge;
-       }
-       // Alpha channel (data[i+3]) is left alone
-    }
-  }
-  ctx.putImageData(imgData, 0, 0);
 }
 
 // --- Word Count Functions ---
@@ -233,7 +267,7 @@ function drawStretchBox(img, x, y, stretchCount = 0, key = "") {
   let middleStartY = topHeight;
   let middleHeight = img.height - topHeight - bottomHeight;
 
-  if (key === "crest" || key === "faith") {
+  if (key === "crest" || key === "faith" || key === "accelerate" || key === "crystallize") {
     topHeight = 107;
     middleStartY = 107;
     middleHeight = 38;
@@ -283,7 +317,8 @@ async function calculateTextBlockHeight(key, startY) {
   if (key === "superEvolve" && processedText.startsWith("Super-Evolve")) {
     processedText = processedText.replace(/^Super-Evolve/, "<K>Super-Evolve</K>");
   }
-  const tokenizerRegex = /(\*\*|_|<c>|<\/c>|<K>|<\/K>|----------|\n|\s+)/g;
+  
+  const tokenizerRegex = /(\*\*|_|<c>|<\/c>|<K>|<\/K>|----------|\n|\s+|-)/g;
   const allTokens = processedText.split(tokenizerRegex).filter(Boolean);
 
   let totalHeight = lineHeight;
@@ -323,7 +358,14 @@ async function calculateTextBlockHeight(key, startY) {
     dryLastTokenWasDivider = false;
 
     setDryFont();
-    const tokenWidth = ctx.measureText(token).width;
+    if (token === "-") {
+      const weight = dryStyle.bold || dryStyle.isKeyword ? "bold " : "";
+      const style = dryStyle.italic ? "italic " : "";
+      ctx.font = `${weight}${style}33px 'Roboto'`;
+    }
+
+    let tokenWidth = ctx.measureText(token).width;
+    if (token === "-") tokenWidth += 4; 
     
     if (currentX > textStartX && currentX + tokenWidth > wrapLimitX && token.trim() !== "") {
       totalHeight += lineHeight;
@@ -339,8 +381,8 @@ async function calculateTextBlockHeight(key, startY) {
   const stretchCount = Math.max(0, (totalHeight / lineHeight) - 1);
   let boxHeight = 0;
   if (boxImg) {
-      const topHeight = (key === "crest" || key === "faith") ? 107 : 40;
-      const bottomHeight = (key === "crest" || key === "faith") ? 28 : 40;
+      const topHeight = (key === "crest" || key === "faith" || key === "accelerate" || key === "crystallize") ? 107 : 40;
+      const bottomHeight = (key === "crest" || key === "faith" || key === "accelerate" || key === "crystallize") ? 28 : 40;
       const middleHeight = boxImg.height - topHeight - bottomHeight;
       const stretchAmount = stretchCount * 50;
       boxHeight = topHeight + middleHeight + bottomHeight + stretchAmount;
@@ -377,9 +419,10 @@ async function drawTextBlock(key, box, x, startY) {
     processedText = processedText.replace(/^Super-Evolve/, "<K>Super-Evolve</K>");
   }
 
-  const tokenizerRegex = /(\*\*|_|<c>|<\/c>|<K>|<\/K>|----------|\n|\s+)/g;
+  const tokenizerRegex = /(\*\*|_|<c>|<\/c>|<K>|<\/K>|----------|\n|\s+|-)/g;
   const allTokens = processedText.split(tokenizerRegex).filter(Boolean);
 
+  // --- Dry Run (Height Calc) ---
   let totalHeight = lineHeight;
   let currentX = textStartX;
   let dryStyle = { bold: false, italic: false, isKeyword: false };
@@ -420,7 +463,16 @@ async function drawTextBlock(key, box, x, startY) {
     
     dryLastTokenWasDivider = false;
     setDryFont();
-    const tokenWidth = ctx.measureText(token).width;
+    
+    if (token === "-") {
+      const weight = dryStyle.bold || dryStyle.isKeyword ? "bold " : "";
+      const style = dryStyle.italic ? "italic " : "";
+      ctx.font = `${weight}${style}33px 'Roboto'`;
+    }
+
+    let tokenWidth = ctx.measureText(token).width;
+    if (token === "-") tokenWidth += 4; 
+
     if (currentX > textStartX && currentX + tokenWidth > wrapLimitX && token.trim() !== "") {
       totalHeight += lineHeight;
       currentX = textStartX;
@@ -437,12 +489,13 @@ async function drawTextBlock(key, box, x, startY) {
     ? drawStretchBox(boxImg, x, startY, stretchCount, key)
     : 0;
 
+  // --- Drawing Run ---
   ctx.textAlign = "left";
   ctx.shadowColor = "black";
   ctx.shadowBlur = 4;
 
   let xPos = textStartX;
-  let textY = startY + 50 + (key === "crest" || key === "faith" ? 90 : 0);
+  let textY = startY + 50 + (key === "crest" || key === "faith" || key === "accelerate" || key === "crystallize" ? 90 : 0);
   let wetStyle = { bold: false, italic: false, color: null, isKeyword: false };
   let lastTokenWasDivider = false;
 
@@ -488,13 +541,28 @@ async function drawTextBlock(key, box, x, startY) {
     }
     lastTokenWasDivider = false;
     setWetStyle();
-    const tokenWidth = ctx.measureText(token).width;
+
+    if (token === "-") {
+      const weight = wetStyle.bold || wetStyle.isKeyword ? "bold " : "";
+      const style = wetStyle.italic ? "italic " : "";
+      ctx.font = `${weight}${style}33px 'Roboto'`;
+    }
+
+    let tokenWidth = ctx.measureText(token).width;
+    let drawX = xPos;
+
+    if (token === "-") {
+        tokenWidth += 4; 
+        drawX += 2; 
+    }
+
     if (xPos > textStartX && xPos + tokenWidth > wrapLimitX && token.trim() !== "") {
       textY += lineHeight;
       xPos = textStartX;
+      drawX = xPos + (token === "-" ? 2 : 0); 
     }
     if (xPos === textStartX && token.trim() === "") continue;
-    ctx.fillText(token, xPos, textY);
+    ctx.fillText(token, drawX, textY);
     xPos += tokenWidth;
     if (wetStyle.italic) xPos += 0;
   }
@@ -507,6 +575,8 @@ async function drawTextBlock(key, box, x, startY) {
 async function drawCard() {
   const textOrder = [
     { key: "card", box: null },
+    { key: "accelerate", box: "accelerate" },
+    { key: "crystallize", box: "crystallize" },
     { key: "evolve", box: "evolve" },
     { key: "superEvolve", box: "superEvolve" },
     { key: "crest", box: "crest" },
@@ -519,7 +589,6 @@ async function drawCard() {
   const isFollower = (currentCardType === 'follower');
   const saveCardOnly = saveCardOnlyCheckbox.checked; 
 
-  // 1. Calculate Height / Stretch
   let stretchPixels = 0;
   
   if (!saveCardOnly) {
@@ -527,105 +596,72 @@ async function drawCard() {
       for (const { key } of textOrder) {
           const textValue = textInputs[key].value.trim();
           if (!textValue) continue; 
-
           const isEvolveBlock = (key === 'evolve' || key === 'superEvolve');
-          if (isEvolveBlock && !isFollower) {
-              continue;
-          }
+          if (isEvolveBlock && !isFollower) continue;
           const blockHeight = await calculateTextBlockHeight(key); 
           calculatedTotalY += blockHeight - 10;
       }
-
       const illustrator = document.getElementById("illustratorName").value.trim();
       const showBottomBar = wordCountCheckbox.checked || illustrator;
-
       const defaultStretchThreshold = 900;
       const bottomBarStretchThreshold = 825;
       const stretchThreshold = showBottomBar ? bottomBarStretchThreshold : defaultStretchThreshold;
-      
       stretchPixels = Math.max(0, calculatedTotalY - stretchThreshold);
   }
 
   const stretchCount = stretchPixels / 50;
   const boxAsset = (wordCountCheckbox.checked || document.getElementById("illustratorName").value.trim()) ? assets.boxes.text_box : assets.boxes.text_box_no_bottom;
-  
   const mainBoxImg = await getImage(boxAsset);
   
-  // 2. Set Canvas Dimensions
   const baseHeight = 1080; 
   const baseWidth = 1920;
-  
-  // UPDATED: Set explicit dimensions for Card Only mode
   const newWidth = saveCardOnly ? 729 : baseWidth;
   const newHeight = saveCardOnly ? 882 : (baseHeight + stretchPixels);
 
-  if (canvas.height !== newHeight) {
-    canvas.height = newHeight;
-  }
-  if (canvas.width !== newWidth) {
-    canvas.width = newWidth;
-  }
+  if (canvas.height !== newHeight) canvas.height = newHeight;
+  if (canvas.width !== newWidth) canvas.width = newWidth;
 
-  // 3. Clear Canvas
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = "high";
 
-  // === START TRANSLATION ===
-  // If saving card only, shift the context UP so the card (which starts at Y=153) hits the top (Y=0)
   ctx.save();
   if (saveCardOnly) {
     ctx.translate(-48, -153);
   }
 
-  // 4. Draw Background (SKIP if Save Card Only)
   if (!saveCardOnly) {
       const bg = await getImage(assets.backgrounds[classSelect.value]);
       const slicePointY = 1000;
       const topHeight = Math.min(slicePointY, bg.height);
       const bottomPartHeight = bg.height - topHeight;
-
       ctx.drawImage(bg, 0, 0, bg.width, topHeight, 0, 0, bg.width, topHeight);
-
       if (bottomPartHeight > 0) {
         const newBottomHeight = bottomPartHeight + stretchPixels;
         ctx.drawImage(bg, 0, topHeight, bg.width, bottomPartHeight, 0, topHeight, bg.width, newBottomHeight);
       }
   }
 
-  // Load Assets
   const [gem, frame] = await Promise.all([
     getImage(assets.gems[classSelect.value]),
-    getImage(
-      assets[typeSelect.value.toLowerCase()][
-        ["bronze", "silver", "gold", "legendary", "signature"].indexOf(
-          raritySelect.value.toLowerCase()
-        )
-      ]
-    )
+    getImage(assets[typeSelect.value.toLowerCase()][["bronze", "silver", "gold", "legendary", "signature"].indexOf(raritySelect.value.toLowerCase())])
   ]);
 
-  // 5. Masked Main Art
   if (uploadedArt) {
     const s = previewState.main;
     const dWidth = uploadedArt.width * s.scale;
     const dHeight = uploadedArt.height * s.scale;
-
     const bmp = await createImageBitmap(uploadedArt, 0, 0, uploadedArt.width, uploadedArt.height, {
       resizeWidth: Math.round(dWidth),
       resizeHeight: Math.round(dHeight),
       resizeQuality: "high" 
     });
-    
     ctx.save();
     ctx.beginPath();
     ctx.rect(MAIN_ART_X, MAIN_ART_Y, MAIN_MASK_W, MAIN_MASK_H);
     ctx.closePath();
     ctx.clip();
-    
     ctx.drawImage(bmp, MAIN_ART_X + s.tx, MAIN_ART_Y + s.ty);
-    
     ctx.restore();
     bmp.close();
   }
@@ -633,11 +669,9 @@ async function drawCard() {
   ctx.drawImage(gem, 398, 863);
   ctx.drawImage(frame, 48, 153);
 
-  // 6. Text Box & Text (SKIP if Save Card Only)
   if (!saveCardOnly) {
       const textBoxX = 722;
       const textBoxY = 206;
-      
       const dynamicBoxWidth = mainBoxImg.width;
       const dynamicBoxHeight = mainBoxImg.height + stretchPixels; 
 
@@ -645,12 +679,9 @@ async function drawCard() {
       offCanvas.width = dynamicBoxWidth;
       offCanvas.height = dynamicBoxHeight;
       const offCtx = offCanvas.getContext("2d");
-      
       offCtx.drawImage(canvas, textBoxX, textBoxY, dynamicBoxWidth, dynamicBoxHeight, 0, 0, dynamicBoxWidth, dynamicBoxHeight);
-      
       offCtx.filter = "blur(5px)";
       offCtx.drawImage(offCanvas, 0, 0);
-      
       ctx.drawImage(offCanvas, textBoxX, textBoxY);
 
       drawStretchBox(mainBoxImg, textBoxX, textBoxY, stretchCount, "main");
@@ -659,104 +690,111 @@ async function drawCard() {
       for (const { key, box } of textOrder) {
         const textValue = textInputs[key].value.trim();
         if (!textValue) continue; 
-
         const isEvolveBlock = (key === 'evolve' || key === 'superEvolve');
-        if (isEvolveBlock && !isFollower) {
-          continue;
-        }
+        if (isEvolveBlock && !isFollower) continue;
 
         const blockHeight = await drawTextBlock(key, box, boxX, currentY);
         
-        // Draw Icons (Crest/Faith)
         const isCrest = key === "crest";
         const isFaith = key === "faith";
-        if (isCrest || isFaith) {
+        const isAccelerate = key === "accelerate";
+        const isCrystallize = key === "crystallize";
+
+        if (isCrest || isFaith || isAccelerate || isCrystallize) {
           const iconX = boxX + 120;
           const iconY = currentY + 32;
-          const iconImg = isCrest ? crestArt : faithArt;
-          const nameField = document.getElementById(isCrest ? "crestName" : "faithName");
-          const nameValue = nameField ? nameField.value.trim() : "";
 
-          if (iconImg) {
-            const s = previewState[isCrest ? "crest" : "faith"];
-            const dWidth = iconImg.width * s.scale;
-            const dHeight = iconImg.height * s.scale;
+          if (isCrest || isFaith) {
+            const iconImg = isCrest ? crestArt : faithArt;
+            const nameField = document.getElementById(isCrest ? "crestName" : "faithName");
+            const nameValue = nameField ? nameField.value.trim() : "";
 
-            const bmp = await createImageBitmap(iconImg, 0, 0, iconImg.width, iconImg.height, {
-              resizeWidth: Math.round(dWidth),
-              resizeHeight: Math.round(dHeight),
-              resizeQuality: "high"
-            });
-            const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = Math.round(dWidth);
-            tempCanvas.height = Math.round(dHeight);
-            const tempCtx = tempCanvas.getContext('2d');
-            tempCtx.drawImage(bmp, 0, 0);
-            applySharpen(tempCtx, tempCanvas.width, tempCanvas.height, 0.25);
+            if (iconImg) {
+              const s = previewState[isCrest ? "crest" : "faith"];
+              const dWidth = iconImg.width * s.scale;
+              const dHeight = iconImg.height * s.scale;
+              const bmp = await createImageBitmap(iconImg, 0, 0, iconImg.width, iconImg.height, {
+                resizeWidth: Math.round(dWidth),
+                resizeHeight: Math.round(dHeight),
+                resizeQuality: "high"
+              });
+              const tempCanvas = document.createElement('canvas');
+              tempCanvas.width = Math.round(dWidth);
+              tempCanvas.height = Math.round(dHeight);
+              const tempCtx = tempCanvas.getContext('2d');
+              tempCtx.drawImage(bmp, 0, 0);
+              applySharpen(tempCtx, tempCanvas.width, tempCanvas.height, 0.25);
 
-            ctx.save();
-            ctx.beginPath();
-            ctx.arc(iconX + ICON_W / 2, iconY + ICON_H / 2, ICON_W / 2, 0, Math.PI * 2);
-            ctx.closePath();
-            ctx.clip();
-            ctx.drawImage(tempCanvas, iconX + s.tx, iconY + s.ty);
-            ctx.restore();
-            bmp.close();
-          }
-          
-          const defaultName = isCrest ? "Crest" : "Faith";
-          const displayName = nameValue || defaultName;
-          if (displayName) {
-            ctx.save();
-            ctx.font = "33px 'Memento'";
-            ctx.fillStyle = "#f3d87d";
-            ctx.textAlign = "left";
-            ctx.shadowColor = "black";
-            ctx.shadowBlur = 4;
-            ctx.fillText(displayName, iconX + ICON_W + 17, iconY + ICON_H / 2 + 10);
-            ctx.restore();
+              ctx.save();
+              ctx.beginPath();
+              ctx.arc(iconX + ICON_W / 2, iconY + ICON_H / 2, ICON_W / 2, 0, Math.PI * 2);
+              ctx.closePath();
+              ctx.clip();
+              ctx.drawImage(tempCanvas, iconX + s.tx, iconY + s.ty);
+              ctx.restore();
+              bmp.close();
+            }
+
+            const defaultName = isCrest ? "Crest" : "Faith";
+            const displayName = nameValue || defaultName;
+            if (displayName) {
+              ctx.save();
+              ctx.fillStyle = "#f3d87d";
+              ctx.shadowColor = "black";
+              ctx.shadowBlur = 4;
+              drawTextWithHyphenSwap(displayName, iconX + ICON_W + 17, iconY + ICON_H / 2 + 10, 33, "left");
+              ctx.restore();
+            }
+          } else {
+             const costField = document.getElementById(isAccelerate ? "accelerateCost" : "crystallizeCost");
+             const costVal = costField ? costField.value : "1";
+             const labelText = isAccelerate ? "Accelerate" : "Crystallize";
+             
+             ctx.save();
+             ctx.shadowColor = "black";
+             ctx.shadowBlur = 4;
+
+             // Draw the custom cost number
+             ctx.fillStyle = "#efeee9";
+             // maxFontSize: 28, maxWidth: 50, fontFace: 'Sv_numbers', letterSpacing: -2, yNudge: 0
+             drawScaledNumber(costVal, 850, iconY + ICON_H / 2 + 8, 28, 50, 'Sv_numbers', -2, 0);
+
+             // Draw the Accelerate/Crystallize label
+             ctx.fillStyle = "#f3d87d";
+             drawTextWithHyphenSwap(labelText, 895, iconY + ICON_H / 2 + 10, 33, "left");
+             ctx.restore();
           }
         }
         currentY += blockHeight - 10;
       }
   }
 
-  // 7. Stats & Name
   ctx.shadowColor = "black";
   ctx.shadowBlur = 6;
   ctx.fillStyle = "#efeee9";
   
   const nameText = nameInput.value.trim() || "Unnamed Card";
 
-  // UPDATED: Only draw the Top Header Name/Trait if NOT in "Card Only" mode
   if (!saveCardOnly) {
-    ctx.font = "56px 'Memento'";
-    ctx.textAlign = "left";
-    ctx.fillText(nameText, 163, 150);
-
-    ctx.font = "33px 'Memento'";
-    ctx.textAlign = "left";
+    drawTextWithHyphenSwap(nameText, 163, 150, 56, "left");
     const traitText = traitInput.value.trim() || "—";
-    ctx.fillText(traitText, 1306, 147);
+    drawTextWithHyphenSwap(traitText, 1306, 147, 33, "left");
   }
 
-  // Draw the Secondary Name (The one inside the card frame)
   let secondaryFontSize = 42;
-  ctx.font = `${secondaryFontSize}px 'Memento'`;
-  let textWidth = ctx.measureText(nameText).width;
+  let { totalWidth } = getPartsAndWidths(nameText, secondaryFontSize);
   const maxWidth = 363;
   const baseY = 331;
   const offsetPerStep = -0.75;
   let shrinkSteps = 0;
-  while (textWidth > maxWidth && secondaryFontSize > 2) {
+  
+  while (totalWidth > maxWidth && secondaryFontSize > 2) {
     secondaryFontSize -= 2;
     shrinkSteps++;
-    ctx.font = `${secondaryFontSize}px 'Memento'`;
-    textWidth = ctx.measureText(nameText).width;
+    totalWidth = getPartsAndWidths(nameText, secondaryFontSize).totalWidth;
   }
   const secondaryNameY = baseY + (shrinkSteps * offsetPerStep);
-  ctx.textAlign = "center";
-  ctx.fillText(nameText, 455, secondaryNameY);
+  drawTextWithHyphenSwap(nameText, 455, secondaryNameY, secondaryFontSize, "center");
 
   const numberSpacing = -5;
   const numberFont = 'Sv_numbers';
@@ -773,7 +811,6 @@ async function drawCard() {
   }
   ctx.letterSpacing = "0px";
 
-  // Footer Elements (Skip if Save Card Only)
   if (!saveCardOnly) {
       if (tokenCheckbox.checked) {
         ctx.font = "28px 'NotoSans'";
@@ -798,14 +835,12 @@ async function drawCard() {
       }
   }
   
-  // === END TRANSLATION ===
   ctx.restore();
-  
   ctx.shadowColor = "transparent"; ctx.shadowBlur = 0;
 }
 
 /***********************
-  PREVIEW COLUMN HANDLERS (clamped)
+  PREVIEW COLUMN HANDLERS
 ***********************/
 const MAIN_MASK_W = 450, MAIN_MASK_H = 560;
 const MAIN_ART_X = 200, MAIN_ART_Y = 350;
@@ -1206,60 +1241,20 @@ document.fonts.ready.then(() => {
   }, 60);
 });
 
-// --- Button Event Listeners (Updated with Font Loading) ---
-
-document.getElementById("downloadBtn").addEventListener("click", async () => { 
-  const btn = document.getElementById("downloadBtn");
-  const originalText = btn.textContent;
-  
-  // Visual feedback that we are waiting for fonts/assets
-  btn.textContent = "Loading assets...";
-  btn.disabled = true;
-
-  try {
-    // === FIX: Force wait for fonts to load before drawing ===
-    // This ensures the Canvas has access to the .ttf files
-    await document.fonts.ready;
-    await Promise.all([
-        document.fonts.load("60px 'Memento'"),
-        document.fonts.load("60px 'Sv_numbers'"),
-        document.fonts.load("30px 'NotoSans'")
-    ]);
-
-    btn.textContent = "Generating...";
-    
-    await drawCard(); 
-    
-    const canvas = document.getElementById("previewCanvas");
-    const link = document.createElement("a");
-    link.download = `${(nameInput.value.trim() || "card")}.png`;
-    link.href = canvas.toDataURL("image/png", 1.0); 
-    link.click();
-    
-  } catch (err) {
-    console.error("Download failed:", err);
-    alert("Error: Could not save image. Try again.");
-  } finally {
-    btn.textContent = originalText;
-    btn.disabled = false;
-  }
-});
-
 document.getElementById("previewBtn").addEventListener("click", async () => {
   const btn = document.getElementById("previewBtn");
   const originalText = btn.textContent;
   
-  // Visual feedback
   btn.textContent = "Loading assets...";
   btn.disabled = true;
 
   try {
-    // === FIX: Force wait for fonts to load before drawing ===
     await document.fonts.ready;
     await Promise.all([
         document.fonts.load("60px 'Memento'"),
         document.fonts.load("60px 'Sv_numbers'"),
-        document.fonts.load("30px 'NotoSans'")
+        document.fonts.load("30px 'NotoSans'"),
+        document.fonts.load("30px 'Roboto'")
     ]);
 
     btn.textContent = "Generating...";
@@ -1289,9 +1284,594 @@ document.getElementById("previewBtn").addEventListener("click", async () => {
 });
 
 
+// --- Navigation Carousel Logic ---
+function navigateTo(page) {
+  const track = document.getElementById("app-carousel");
+  
+  if (page === 'balance') {
+    track.style.transform = "translateX(0%)";
+  } else if (page === 'home') {
+    track.style.transform = "translateX(-33.3333%)";
+  } else if (page === 'workshop') {
+    track.style.transform = "translateX(-66.6666%)";
+  }
+  
+  const viewport = document.getElementById("app-viewport");
+  if (viewport) viewport.scrollTo({ top: 0, behavior: 'smooth' });
+}
 
 
+// --- WORKSHOP LOGIC (IndexedDB) ---
 
+const DB_NAME = "ShadowverseWorkshopDB";
+const STORE_NAME = "cards";
+const DB_VERSION = 1;
+
+// NEW: Global variables to track workshop navigation state
+let workshopCardsCache = []; 
+let visibleCardsCache = []; // New cache for filtered results
+let currentCardIndex = -1;
+let currentClassFilter = "All"; // Default filter
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+    request.onupgradeneeded = (event) => {
+      const db = event.target.result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME, { keyPath: "id" });
+      }
+    };
+
+    request.onsuccess = (event) => {
+      resolve(event.target.result);
+    };
+
+    request.onerror = (event) => {
+      reject("IndexedDB error: " + event.target.errorCode);
+    };
+  });
+}
+
+async function saveToWorkshop(cardData) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction([STORE_NAME], "readwrite");
+    const store = transaction.objectStore(STORE_NAME);
+    const request = store.add(cardData); 
+
+    request.onsuccess = () => resolve();
+    request.onerror = (e) => reject(e.target.error);
+  });
+}
+
+async function getWorkshopData() {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction([STORE_NAME], "readonly");
+    const store = transaction.objectStore(STORE_NAME);
+    const request = store.getAll();
+
+    request.onsuccess = () => {
+      const data = request.result;
+      data.sort((a, b) => b.id - a.id);
+      resolve(data);
+    };
+    request.onerror = (e) => reject(e.target.error);
+  });
+}
+
+async function clearWorkshop() {
+  if(confirm("Are you sure you want to clear your card history?")) {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([STORE_NAME], "readwrite");
+      const store = transaction.objectStore(STORE_NAME);
+      const request = store.clear();
+
+      request.onsuccess = () => {
+        renderWorkshop();
+        resolve();
+      };
+      request.onerror = (e) => reject(e.target.error);
+    });
+  }
+}
+
+async function renderWorkshop() {
+  const grid = document.getElementById("workshopGrid");
+  if (!grid) return;
+  
+  grid.innerHTML = ""; 
+
+  try {
+    // 1. Get fresh data
+    const data = await getWorkshopData();
+    workshopCardsCache = data; 
+
+    // 2. Apply Filter
+    if (currentClassFilter === "All") {
+      visibleCardsCache = data;
+    } else {
+      visibleCardsCache = data.filter(card => card.class === currentClassFilter);
+    }
+
+    if (visibleCardsCache.length === 0) {
+      if (data.length === 0) {
+        grid.innerHTML = '<p class="placeholder-text">No cards generated yet. Create and download a card to see it here!</p>';
+      } else {
+        grid.innerHTML = `<p class="placeholder-text">No ${currentClassFilter} cards found.</p>`;
+      }
+      return;
+    }
+
+    // 3. Render only visible cards
+    visibleCardsCache.forEach((card, index) => {
+      const cardEl = document.createElement("div");
+      cardEl.className = "workshop-card";
+      
+      // Update Click to use index tracking based on VISIBLE cache
+      cardEl.onclick = () => {
+          currentCardIndex = index;
+          openWorkshopModal(index); 
+      };
+
+      const img = document.createElement("img");
+      img.src = card.image;
+      img.loading = "lazy";
+
+      cardEl.appendChild(img);
+      grid.appendChild(cardEl);
+    });
+  } catch (err) {
+    console.error("Error loading workshop:", err);
+    grid.innerHTML = '<p class="placeholder-text" style="color:#d55;">Error loading workshop history.</p>';
+  }
+}
+
+// Setup Filter Button Listeners
+document.addEventListener("DOMContentLoaded", () => {
+  const filterBtns = document.querySelectorAll(".filter-btn");
+  filterBtns.forEach(btn => {
+    btn.addEventListener("click", () => {
+      // UI Update
+      filterBtns.forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      
+      // Logic Update
+      currentClassFilter = btn.dataset.filter;
+      renderWorkshop();
+    });
+  });
+});
+
+const workshopModal = document.getElementById("workshopModal");
+
+// Helper to format text for HTML (Modal) matching Canvas logic
+function formatWorkshopHTML(text) {
+  if (!text) return "";
+
+  // 1. Escape HTML entities
+  let html = text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+
+  // 2. Restore supported custom tags
+  html = html
+    .replace(/&lt;c&gt;/g, "<c>")
+    .replace(/&lt;\/c&gt;/g, "</c>");
+
+  // 3. Handle Evolve/Super-Evolve start-of-line highlighting
+  if (html.startsWith("Evolve")) {
+    html = html.replace(/^Evolve/, '<span class="sv-keyword">Evolve</span>');
+  }
+  if (html.startsWith("Super-Evolve")) {
+    html = html.replace(/^Super-Evolve/, '<span class="sv-keyword">Super-Evolve</span>');
+  }
+
+  // 4. Highlight standard keywords
+  html = html.replace(HIGHLIGHT_REGEX, '<span class="sv-keyword">$1</span>');
+
+  // 5. Apply formatting codes
+  html = html.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>'); // Bold
+  html = html.replace(/_(.*?)_/g, '<i>$1</i>');       // Italic
+  html = html.replace(/<c>(.*?)<\/c>/g, '<span style="color:#f3d87d">$1</span>'); // Color
+  
+  // 6. Dividers (----------)
+  // UPDATED: Consumes the optional newline (\n?) immediately following the divider
+  // to prevent an extra line break from appearing after the line.
+  html = html.replace(/----------\n?/g, '<hr class="sv-divider">');
+
+  // 7. Newlines (Convert remaining newlines to <br>)
+  html = html.replace(/\n/g, '<br>');
+
+  return html;
+}
+
+// REFACTORED: Now accepts an index and pulls from cache
+function openWorkshopModal(index) {
+  if (index < 0 || index >= visibleCardsCache.length) return;
+  
+  const card = workshopCardsCache[index];
+
+  document.getElementById("modalCardImage").src = card.image;
+  document.getElementById("modalCardName").textContent = card.name;
+
+  const traitVal = card.trait ? card.trait : "-";
+  const classVal = card.class ? card.class : "Neutral";
+  const illustratorVal = card.illustrator ? card.illustrator : "-";
+
+  const metaHTML = `
+    <span class="sv-gold-label">Trait:</span> ${traitVal}
+    <span class="sv-meta-separator">|</span>
+    <span class="sv-gold-label">Class:</span> ${classVal}
+    <span class="sv-meta-separator">|</span>
+    <span class="sv-gold-label">Illustrator:</span> ${illustratorVal}
+  `;
+  
+  const metaContainer = document.getElementById("modalMetaString");
+  if (metaContainer) {
+      metaContainer.innerHTML = metaHTML;
+  }
+  
+  const container = document.getElementById("modalTextContainer");
+  container.innerHTML = ""; 
+
+  // 1. Render Main Card Text
+  if (card.text.card) {
+    const p = document.createElement("div");
+    p.className = "sv-text-block";
+    p.innerHTML = formatWorkshopHTML(card.text.card);
+    container.appendChild(p);
+  }
+
+  const isFollower = card.type === "Follower";
+
+  // 2. Identify presence of extras to determine if divider is needed
+  const hasEvolve = isFollower && card.text.evolve;
+  const hasSuperEvolve = isFollower && card.text.superEvolve;
+  const hasCrest = !!card.text.crest;
+  const hasFaith = !!card.text.faith;
+  const hasAccelerate = !!card.text.accelerate;
+  const hasCrystallize = !!card.text.crystallize;
+
+  const hasAnyExtra = hasEvolve || hasSuperEvolve || hasCrest || hasFaith || hasAccelerate || hasCrystallize;
+
+  // 3. Insert Structural Divider between Card Text and Extras
+  if (card.text.card && hasAnyExtra) {
+    const hr = document.createElement("hr");
+    hr.className = "sv-divider";
+    container.appendChild(hr);
+  }
+
+  // 4. Render Evolve / Super-Evolve (Standard Text Blocks)
+  if (hasEvolve) {
+    const p = document.createElement("div");
+    p.className = "sv-text-block";
+    p.innerHTML = formatWorkshopHTML(card.text.evolve);
+    container.appendChild(p);
+  }
+
+  if (hasSuperEvolve) {
+    const p = document.createElement("div");
+    p.className = "sv-text-block";
+    p.innerHTML = formatWorkshopHTML(card.text.superEvolve);
+    container.appendChild(p);
+  }
+
+  // 5. Render Extras (New Sub-box Structure)
+  const createSubBox = (type, name, text) => {
+    const wrapper = document.createElement("div");
+    wrapper.className = "sv-sub-box";
+
+    const header = document.createElement("div");
+    header.className = "sv-sub-header";
+
+    if (type !== "Accelerate" && type !== "Crystallize") {
+        const img = document.createElement("img");
+        img.src = `assets/misc/${type.toLowerCase()}.png`; // Expects 'crest.png' or 'faith.png'
+        img.alt = type;
+        header.appendChild(img);
+    }
+    
+    // Title
+    const titleSpan = document.createElement("span");
+    titleSpan.textContent = name || type; // Use custom name or default to Type (Crest/Faith)
+
+    header.appendChild(titleSpan);
+
+    const content = document.createElement("div");
+    content.className = "sv-sub-content";
+    content.innerHTML = formatWorkshopHTML(text);
+
+    wrapper.appendChild(header);
+    wrapper.appendChild(content);
+
+    return wrapper;
+  };
+
+  if (hasAccelerate) {
+    container.appendChild(createSubBox("Accelerate", "Accelerate " + (card.costs?.accelerate || "1"), card.text.accelerate));
+  }
+  if (hasCrystallize) {
+    container.appendChild(createSubBox("Crystallize", "Crystallize " + (card.costs?.crystallize || "1"), card.text.crystallize));
+  }
+  if (hasCrest) {
+    container.appendChild(createSubBox("Crest", card.names.crest, card.text.crest));
+  }
+  if (hasFaith) {
+    container.appendChild(createSubBox("Faith", card.names.faith, card.text.faith));
+  }
+
+  document.getElementById("workshopModal").style.display = "block";
+}
+
+// NEW: Navigation Function
+function navigateModal(direction) {
+  if (visibleCardsCache.length === 0) return;
+
+  currentCardIndex += direction;
+
+  // Infinite loop logic
+  if (currentCardIndex < 0) {
+    currentCardIndex = visibleCardsCache.length - 1;
+  } else if (currentCardIndex >= visibleCardsCache.length) {
+    currentCardIndex = 0;
+  }
+
+  openWorkshopModal(currentCardIndex);
+}
+
+// Attach Event Listeners for Navigation
+const prevBtn = document.getElementById('modalPrevBtn');
+const nextBtn = document.getElementById('modalNextBtn');
+
+if(prevBtn) prevBtn.onclick = (e) => { e.stopPropagation(); navigateModal(-1); };
+if(nextBtn) nextBtn.onclick = (e) => { e.stopPropagation(); navigateModal(1); };
+
+// Optional: Keyboard support
+document.addEventListener('keydown', (e) => {
+    const modal = document.getElementById("workshopModal");
+    if (modal.style.display === "block") {
+      if (e.key === "ArrowLeft") navigateModal(-1);
+      if (e.key === "ArrowRight") navigateModal(1);
+    }
+});
+
+function closeWorkshopModal() {
+  workshopModal.style.display = "none";
+}
+
+window.addEventListener("click", (e) => {
+  if (e.target === workshopModal) {
+    closeWorkshopModal();
+  }
+});
+
+document.addEventListener("DOMContentLoaded", renderWorkshop);
+
+document.getElementById("downloadBtn").addEventListener("click", async () => { 
+  const btn = document.getElementById("downloadBtn");
+  const originalText = btn.textContent;
+  
+  btn.textContent = "Processing...";
+  btn.disabled = true;
+
+  try {
+    await document.fonts.ready;
+    await Promise.all([
+        document.fonts.load("60px 'Memento'"),
+        document.fonts.load("60px 'Sv_numbers'"),
+        document.fonts.load("30px 'NotoSans'"),
+        document.fonts.load("30px 'Roboto'")
+    ]);
+
+    const wasChecked = saveCardOnlyCheckbox.checked;
+    
+    saveCardOnlyCheckbox.checked = true;
+    await drawCard();
+    const workshopImageBase64 = canvas.toDataURL("image/png", 0.8); 
+    
+    const cardMetadata = {
+      id: Date.now(),
+      image: workshopImageBase64,
+      name: nameInput.value.trim() || "Unnamed Card",
+      trait: traitInput.value.trim(),
+      class: classSelect.value,
+      type: typeSelect.value,
+      rarity: raritySelect.value,
+      illustrator: document.getElementById("illustratorName").value.trim(),
+      names: {
+        crest: document.getElementById("crestName").value.trim(),
+        faith: document.getElementById("faithName").value.trim()
+      },
+      costs: {
+        accelerate: document.getElementById("accelerateCost").value,
+        crystallize: document.getElementById("crystallizeCost").value
+      },
+      text: {
+        card: textInputs.card.value.trim(),
+        evolve: textInputs.evolve.value.trim(),
+        superEvolve: textInputs.superEvolve.value.trim(),
+        crest: textInputs.crest.value.trim(),
+        faith: textInputs.faith.value.trim(),
+        accelerate: textInputs.accelerate.value.trim(),
+        crystallize: textInputs.crystallize.value.trim()
+      }
+    };
+
+    try {
+      await saveToWorkshop(cardMetadata);
+      await renderWorkshop();
+    } catch (dbError) {
+      console.warn("Failed to save to workshop history (IndexedDB error):", dbError);
+    }
+
+    if (!wasChecked) {
+      saveCardOnlyCheckbox.checked = false;
+      await drawCard(); 
+    }
+
+    const downloadLink = document.createElement("a");
+    downloadLink.download = `${(nameInput.value.trim() || "card")}.png`;
+    downloadLink.href = canvas.toDataURL("image/png", 1.0); 
+    downloadLink.click();
+    
+  } catch (err) {
+    console.error("Download failed:", err);
+    alert("Error: Could not save image. Try again.");
+  } finally {
+    btn.textContent = originalText;
+    btn.disabled = false;
+  }
+});
+
+// ------------------------------------
+// OFFICIAL CARDS SEARCH FUNCTIONALITY
+// ------------------------------------
+let officialCards = [];
+
+async function fetchOfficialCards() {
+  try {
+    // Assuming cards.txt is at cards/cards.txt relative to the HTML
+    const response = await fetch('cards.txt');
+    if (!response.ok) {
+      console.warn("Could not fetch cards.txt");
+      return;
+    }
+    const text = await response.text();
+    parseOfficialCards(text);
+  } catch (err) {
+    console.error("Error fetching card database:", err);
+  }
+}
+
+function parseOfficialCards(fullText) {
+  // Pattern to find "Card Name: ...", "Card ID: ..."
+  // We'll split the file by the "====================..." separators first
+  const sections = fullText.split(/={10,}/);
+  
+  officialCards = [];
+
+  sections.forEach(section => {
+    // Basic extraction
+    const nameMatch = section.match(/Card Name:\s*(.+)/);
+    const idMatch = section.match(/Card ID:\s*(\d+)/);
+    
+    if (nameMatch && idMatch) {
+      const name = nameMatch[1].trim();
+      const id = idMatch[1].trim();
+      
+      officialCards.push({ name, id, fullText: section });
+    }
+  });
+
+  // Sort alphabetically by name
+  officialCards.sort((a, b) => a.name.localeCompare(b.name));
+  console.log(`Loaded ${officialCards.length} official cards.`);
+}
+
+function setupSearch(inputId, resultsId) {
+  const input = document.getElementById(inputId);
+  const resultsContainer = document.getElementById(resultsId);
+
+  if (!input || !resultsContainer) return;
+
+  // On Input
+  input.addEventListener('input', (e) => {
+    const query = e.target.value.toLowerCase().trim();
+    if (query.length === 0) {
+      resultsContainer.style.display = 'none';
+      return;
+    }
+
+    const matches = officialCards.filter(card => 
+      card.name.toLowerCase().includes(query) || card.id.includes(query)
+    );
+
+    renderResults(matches, resultsContainer, input);
+  });
+
+  // Hide when clicking outside
+  document.addEventListener('click', (e) => {
+    if (!input.contains(e.target) && !resultsContainer.contains(e.target)) {
+      resultsContainer.style.display = 'none';
+    }
+  });
+  
+  // Show results again on focus if text exists
+  input.addEventListener('focus', () => {
+      if (input.value.trim().length > 0) {
+          input.dispatchEvent(new Event('input'));
+      }
+  });
+}
+
+function renderResults(matches, container, inputField) {
+  container.innerHTML = '';
+  
+  if (matches.length === 0) {
+    container.style.display = 'none';
+    return;
+  }
+
+  matches.forEach(card => {
+    const li = document.createElement('li');
+    li.innerHTML = `${card.name} <span class="card-id-preview">ID: ${card.id}</span>`;
+    
+    li.onclick = () => {
+      inputField.value = card.name;
+      container.style.display = 'none';
+      
+      // NEW: Logic for Balance Page
+      if (inputField.id === 'balanceSearchInput') {
+        populateBalanceForm(card);
+      } 
+      // Existing Logic for Workshop/Other
+      else {
+        console.log("Selected card:", card);
+      }
+    };
+    
+    container.appendChild(li);
+  });
+
+  container.style.display = 'block';
+}
+
+function populateBalanceForm(card) {
+  // Hide placeholder, show form
+  const placeholder = document.querySelector('#page-balance .placeholder-content');
+  if (placeholder) placeholder.style.display = 'none';
+  
+  const form = document.getElementById('balanceAdjustmentForm');
+  if (form) form.style.display = 'block';
+
+  // Stats
+  document.getElementById('adjCost').value = card.cost || 0;
+  document.getElementById('adjAttack').value = card.attack || 0;
+  document.getElementById('adjDefense').value = card.defense || 0;
+
+  // Trait
+  document.getElementById('adjTrait').value = (card.trait === '-' ? '' : card.trait) || '';
+
+  // Text Fields
+  document.getElementById('adjCardText').value = card.text.card || '';
+  document.getElementById('adjEvolveText').value = card.text.evolve || '';
+  document.getElementById('adjSuperEvolveText').value = card.text.superEvolve || '';
+  document.getElementById('adjCrestText').value = card.text.crest || '';
+  document.getElementById('adjFaithText').value = card.text.faith || '';
+}
+
+// Initialize Search on Load
+document.addEventListener("DOMContentLoaded", () => {
+  fetchOfficialCards().then(() => {
+    setupSearch('balanceSearchInput', 'balanceSearchResults');
+    setupSearch('workshopSearchInput', 'workshopSearchResults');
+  });
+});
 
 
 
