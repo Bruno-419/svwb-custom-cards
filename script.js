@@ -318,7 +318,7 @@ async function calculateTextBlockHeight(key, startY) {
     processedText = processedText.replace(/^Super-Evolve/, "<K>Super-Evolve</K>");
   }
   
-  const tokenizerRegex = /(\*\*|_|<c>|<\/c>|<K>|<\/K>|----------|\n|\s+|-)/g;
+  const tokenizerRegex = /(\*\*|_|<c>|<\/c>|<K>|<\/K>|----------|\n|[^\S\r\n]+|-)/g;
   const allTokens = processedText.split(tokenizerRegex).filter(Boolean);
 
   let totalHeight = lineHeight;
@@ -388,7 +388,8 @@ async function calculateTextBlockHeight(key, startY) {
       boxHeight = topHeight + middleHeight + bottomHeight + stretchAmount;
   }
 
-  return Math.max(boxHeight, totalHeight + 40);
+  const specialOffset = (key === "crest" || key === "faith" || key === "accelerate" || key === "crystallize") ? 90 : 0;
+  return Math.max(boxHeight, totalHeight + specialOffset + 40);
 }
 
 // --- drawTextBlock ---
@@ -419,7 +420,7 @@ async function drawTextBlock(key, box, x, startY) {
     processedText = processedText.replace(/^Super-Evolve/, "<K>Super-Evolve</K>");
   }
 
-  const tokenizerRegex = /(\*\*|_|<c>|<\/c>|<K>|<\/K>|----------|\n|\s+|-)/g;
+  const tokenizerRegex = /(\*\*|_|<c>|<\/c>|<K>|<\/K>|----------|\n|[^\S\r\n]+|-)/g;
   const allTokens = processedText.split(tokenizerRegex).filter(Boolean);
 
   // --- Dry Run (Height Calc) ---
@@ -575,12 +576,12 @@ async function drawTextBlock(key, box, x, startY) {
 async function drawCard() {
   const textOrder = [
     { key: "card", box: null },
-    { key: "accelerate", box: "accelerate" },
-    { key: "crystallize", box: "crystallize" },
     { key: "evolve", box: "evolve" },
     { key: "superEvolve", box: "superEvolve" },
     { key: "crest", box: "crest" },
-    { key: "faith", box: "faith" }
+    { key: "faith", box: "faith" },
+    { key: "accelerate", box: "accelerate" },
+    { key: "crystallize", box: "crystallize" }
   ];
   const boxX = 768;
   const startY = 246;
@@ -589,8 +590,15 @@ async function drawCard() {
   const isFollower = (currentCardType === 'follower');
   const saveCardOnly = saveCardOnlyCheckbox.checked; 
 
-  let stretchPixels = 0;
-  
+  let textStretchPixels = 0;
+  let bgStretchPixels = 0;
+
+  // We fetch the mainBoxImg earlier so we can use its height in the stretch calculations
+  const illustrator = document.getElementById("illustratorName").value.trim();
+  const showBottomBar = wordCountCheckbox.checked || illustrator;
+  const boxAsset = showBottomBar ? assets.boxes.text_box : assets.boxes.text_box_no_bottom;
+  const mainBoxImg = await getImage(boxAsset);
+
   if (!saveCardOnly) {
       let calculatedTotalY = startY;
       for (const { key } of textOrder) {
@@ -601,22 +609,32 @@ async function drawCard() {
           const blockHeight = await calculateTextBlockHeight(key); 
           calculatedTotalY += blockHeight - 10;
       }
-      const illustrator = document.getElementById("illustratorName").value.trim();
-      const showBottomBar = wordCountCheckbox.checked || illustrator;
+
       const defaultStretchThreshold = 900;
       const bottomBarStretchThreshold = 825;
       const stretchThreshold = showBottomBar ? bottomBarStretchThreshold : defaultStretchThreshold;
-      stretchPixels = Math.max(0, calculatedTotalY - stretchThreshold);
+      
+      // Calculate how much the text box needs to stretch to fit the text
+      textStretchPixels = Math.max(0, calculatedTotalY - stretchThreshold);
+
+      // Calculate the absolute bottom Y coordinate of the stretched text box
+      let currentBottomY = 206 + mainBoxImg.height + textStretchPixels;
+      
+      // Account for the "token card" text
+      if (tokenCheckbox.checked) {
+          currentBottomY += 35; 
+      }
+      
+      // Only stretch the background canvas if it exceeds the 1050 threshold
+      bgStretchPixels = Math.max(0, currentBottomY - 1050);
   }
 
-  const stretchCount = stretchPixels / 50;
-  const boxAsset = (wordCountCheckbox.checked || document.getElementById("illustratorName").value.trim()) ? assets.boxes.text_box : assets.boxes.text_box_no_bottom;
-  const mainBoxImg = await getImage(boxAsset);
+  const stretchCount = textStretchPixels / 50;
   
   const baseHeight = 1080; 
   const baseWidth = 1920;
   const newWidth = saveCardOnly ? 729 : baseWidth;
-  const newHeight = saveCardOnly ? 882 : (baseHeight + stretchPixels);
+  const newHeight = saveCardOnly ? 882 : (baseHeight + bgStretchPixels);
 
   if (canvas.height !== newHeight) canvas.height = newHeight;
   if (canvas.width !== newWidth) canvas.width = newWidth;
@@ -629,15 +647,15 @@ async function drawCard() {
   if (saveCardOnly) {
     ctx.translate(-48, -153);
   }
-
+  
   if (!saveCardOnly) {
       const bg = await getImage(assets.backgrounds[classSelect.value]);
-      const slicePointY = 1000;
+      const slicePointY = 200;
       const topHeight = Math.min(slicePointY, bg.height);
       const bottomPartHeight = bg.height - topHeight;
       ctx.drawImage(bg, 0, 0, bg.width, topHeight, 0, 0, bg.width, topHeight);
       if (bottomPartHeight > 0) {
-        const newBottomHeight = bottomPartHeight + stretchPixels;
+        const newBottomHeight = bottomPartHeight + bgStretchPixels;
         ctx.drawImage(bg, 0, topHeight, bg.width, bottomPartHeight, 0, topHeight, bg.width, newBottomHeight);
       }
   }
@@ -673,16 +691,16 @@ async function drawCard() {
       const textBoxX = 722;
       const textBoxY = 206;
       const dynamicBoxWidth = mainBoxImg.width;
-      const dynamicBoxHeight = mainBoxImg.height + stretchPixels; 
+      const dynamicBoxHeight = mainBoxImg.height + textStretchPixels; 
 
       const offCanvas = document.createElement("canvas");
-      offCanvas.width = dynamicBoxWidth;
-      offCanvas.height = dynamicBoxHeight;
+      offCanvas.width = dynamicBoxWidth - 18;
+      offCanvas.height = dynamicBoxHeight - 22;
       const offCtx = offCanvas.getContext("2d");
       offCtx.drawImage(canvas, textBoxX, textBoxY, dynamicBoxWidth, dynamicBoxHeight, 0, 0, dynamicBoxWidth, dynamicBoxHeight);
       offCtx.filter = "blur(5px)";
       offCtx.drawImage(offCanvas, 0, 0);
-      ctx.drawImage(offCanvas, textBoxX, textBoxY);
+      ctx.drawImage(offCanvas, textBoxX + 9, textBoxY + 11);
 
       drawStretchBox(mainBoxImg, textBoxX, textBoxY, stretchCount, "main");
       
@@ -815,11 +833,13 @@ async function drawCard() {
       if (tokenCheckbox.checked) {
         ctx.font = "28px 'NotoSans'";
         ctx.textAlign = "right";
-        ctx.fillText("*This is a token card.", 1788, canvas.height - 55);
+        const nudge = (textStretchPixels > 0) ? 23 : 0;
+        const tokenY = 1025 + textStretchPixels - nudge;
+        ctx.fillText("*This is a token card.", 1788, tokenY);
       }
 
       const bottomBarBaseY = 911;
-      const dynamicBottomBarY = bottomBarBaseY + stretchPixels;
+      const dynamicBottomBarY = bottomBarBaseY + textStretchPixels;
 
       const illustrator = document.getElementById("illustratorName").value.trim();
       if (illustrator) {
@@ -1027,6 +1047,8 @@ if (artInput) {
     }
     try {
       const img = await loadImageFromFile(file);
+      
+      // Update Main Art
       previewState.main.img = img;
       fitImageToMask(img, previewState.main);
       if (mainZoomSlider) {
@@ -1037,6 +1059,31 @@ if (artInput) {
         mainZoomSlider.step = (max - min) / 100;
         mainZoomSlider.value = previewState.main.scale;
       }
+
+      // Automatically update Crest Art
+      previewState.crest.img = img;
+      fitImageToMask(img, previewState.crest);
+      if (crestZoomSlider) {
+        const min = previewState.crest.minScale;
+        const max = min * 8; 
+        crestZoomSlider.min = min;
+        crestZoomSlider.max = max;
+        crestZoomSlider.step = (max - min) / 100;
+        crestZoomSlider.value = previewState.crest.scale;
+      }
+
+      // Automatically update Faith Art
+      previewState.faith.img = img;
+      fitImageToMask(img, previewState.faith);
+      if (faithZoomSlider) {
+        const min = previewState.faith.minScale;
+        const max = min * 8; 
+        faithZoomSlider.min = min;
+        faithZoomSlider.max = max;
+        faithZoomSlider.step = (max - min) / 100;
+        faithZoomSlider.value = previewState.faith.scale;
+      }
+
       updateAll();
     } catch (err) {
       console.error("Failed to load main art:", err);
@@ -1872,6 +1919,31 @@ document.addEventListener("DOMContentLoaded", () => {
     setupSearch('workshopSearchInput', 'workshopSearchResults');
   });
 });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
