@@ -460,58 +460,58 @@ canvas { max-width: 100%; height: auto; border-radius: 8px; border: 2px solid #4
 /*——————COLOR THINGS———————— */
 
 /* Custom focus states for the colored inputs */
-
-#cardName:focus, #cardTrait:focus, #illustratorName:focus {
+#cardName:focus, #cardTrait:focus, #illustratorName:focus, #adjTrait:focus {
   border-color: #20B2AA;
   box-shadow: inset 0 0 0 1px rgba(0, 255, 183, 0.15), 0 0 5px rgba(0, 255, 183, 0.4);
 }
 
-#costValue:focus {
+#costValue:focus, #adjCost:focus {
   border-color: #3CB371;
   box-shadow: inset 0 0 0 1px rgba(0, 255, 38, 0.15), 0 0 5px rgba(0, 255, 38, 0.4);
 }
 
-#attackValue:focus {
+#attackValue:focus, #adjAttack:focus {
   border-color: #1E90FF;
   box-shadow: inset 0 0 0 1px rgba(0, 145, 255, 0.15), 0 0 5px rgba(0, 145, 255, 0.4);
 }
 
-#defenseValue:focus {
+#defenseValue:focus, #adjDefense:focus {
   border-color: #DC143C;
   box-shadow: inset 0 0 0 1px rgba(255, 0, 0, 0.15), 0 0 5px rgba(255, 0, 0, 0.4);
 }
 
-#evolveText:focus {
+#evolveText:focus, #adjEvolveText:focus {
   border-color: #d6a629;
   box-shadow: inset 0 0 0 1px rgba(255, 215, 0, 0.15), 0 0 5px rgba(255, 215, 0, 0.4);
 }
 
-#superEvolveText:focus {
+#superEvolveText:focus, #adjSuperEvolveText:focus {
   border-color: #8229d6;
   box-shadow: inset 0 0 0 1px rgba(255, 0, 255, 0.15), 0 0 5px rgba(255, 0, 255, 0.4);
 }
 
-#crestName:focus, #crestText:focus {
+#crestName:focus, #crestText:focus, #adjCrestText:focus {
   border-color: #bcbcbc;
   box-shadow: inset 0 0 0 1px rgba(188, 188, 188, 0.15), 0 0 5px rgba(188, 188, 188, 0.4);
 }
 
-#faithName:focus, #faithText:focus {
+#faithName:focus, #faithText:focus, #adjFaithText:focus {
   border-color: #e6781f;
   box-shadow: inset 0 0 0 1px rgba(230, 120, 31, 0.15), 0 0 5px rgba(230, 120, 31, 0.4);
 }
 
-#accelerateCost:focus, #accelerateText:focus {
+#accelerateCost:focus, #accelerateText:focus, #adjAccelerateCost:focus, #adjAccelerateText:focus {
   border-color: #fe80ff;
   box-shadow: inset 0 0 0 1px rgba(254, 128, 255, 0.15), 0 0 5px rgba(254, 128, 255, 0.4);
 }
 
-#crystallizeCost:focus, #crystallizeText:focus {
+#crystallizeCost:focus, #crystallizeText:focus, #adjCrystallizeCost:focus, #adjCrystallizeText:focus {
   border-color: #d7ff80;
   box-shadow: inset 0 0 0 1px rgba(215, 255, 128, 0.15), 0 0 5px rgba(215, 255, 128, 0.4);
 }
 
-#cardName, #cardTrait, #illustratorName {
+/* Static Left-Borders */
+#cardName, #cardTrait, #illustratorName, #adjTrait {
   position: relative;
   border-left: 6px solid #20B2AA; 
   padding-left: 10px; 
@@ -520,7 +520,7 @@ canvas { max-width: 100%; height: auto; border-radius: 8px; border: 2px solid #4
   border-bottom-left-radius: 6px;
 }
 
-#costValue {
+#costValue, #adjCost {
   position: relative;
   border-left: 6px solid #3CB371;
   padding-left: 10px; 
@@ -529,7 +529,7 @@ canvas { max-width: 100%; height: auto; border-radius: 8px; border: 2px solid #4
   border-bottom-left-radius: 6px;
 }
 
-#attackValue {
+#attackValue, #adjAttack {
   position: relative;
   border-left: 6px solid #1E90FF;
   padding-left: 10px; 
@@ -538,7 +538,7 @@ canvas { max-width: 100%; height: auto; border-radius: 8px; border: 2px solid #4
   border-bottom-left-radius: 6px;
 }
 
-#defenseValue {
+#defenseValue, #adjDefense {
   position: relative;
   border-left: 6px solid #DC143C;
   padding-left: 10px; 
@@ -547,7 +547,7 @@ canvas { max-width: 100%; height: auto; border-radius: 8px; border: 2px solid #4
   border-bottom-left-radius: 6px;
 }
 
-#evolveText {
+#evolveText, #adjEvolveText {
   position: relative;
   border-left: 6px solid #d6a629;
   padding-left: 10px; 
@@ -556,11 +556,30 @@ canvas { max-width: 100%; height: auto; border-radius: 8px; border: 2px solid #4
   border-bottom-left-radius: 6px;
 }
 
-#superEvolveText {
+#superEvolveText, #adjSuperEvolveText {
   position: relative;
   border-left: 6px solid #8229d6;
   padding-left: 10px;
   box-shadow: inset 0 0 0 1px rgba(255, 0, 255, 0.15);
+  border-top-left-radius: 6px;
+  border-bottom-left-radius: 6px;
+}
+
+/* Add Crest and Faith classes to apply to the textareas alone */
+#adjCrestText {
+  position: relative;
+  border-left: 6px solid #bcbcbc;
+  padding-left: 10px;
+  box-shadow: inset 0 0 0 1px rgba(188, 188, 188, 0.15);
+  border-top-left-radius: 6px;
+  border-bottom-left-radius: 6px;
+}
+
+#adjFaithText {
+  position: relative;
+  border-left: 6px solid #e6781f;
+  padding-left: 10px;
+  box-shadow: inset 0 0 0 1px rgba(230, 120, 31, 0.15);
   border-top-left-radius: 6px;
   border-bottom-left-radius: 6px;
 }
@@ -941,6 +960,69 @@ canvas { max-width: 100%; height: auto; border-radius: 8px; border: 2px solid #4
     align-items: flex-start; 
   }
 }
+
+
+
+/* --- Global Bookmark Toolbar (Attached Tab Style) --- */
+.right-column-wrapper {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.global-text-toolbar {
+  display: flex;
+  gap: 8px;
+  background: #1a1a1a; /* Matches the panel background */
+  padding: 10px 16px;
+  
+  /* Rounds the top, leaves the bottom flat to connect to the panel */
+  border-radius: 10px 10px 0 0; 
+  border: 1px solid #333;
+  border-bottom: none; 
+  
+  align-items: center;
+  position: sticky;
+  top: 0; 
+  z-index: 50;
+  margin-bottom: 0;
+}
+
+/* Flatten the top corners of the right panel so it merges with the toolbar */
+.right-column-wrapper .right-panel {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  margin-top: 0;
+}
+
+.global-text-toolbar .toolbar-label {
+  font-size: 13px;
+  color: var(--accent);
+  margin-right: auto;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.global-text-toolbar button {
+  background: #252525;
+  border: 1px solid #444;
+  color: #ddd;
+  font-weight: bold;
+  font-size: 13px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  transform: none;
+}
+
+.global-text-toolbar button:hover {
+  background: #333;
+  color: #fff;
+  transform: translateY(-2px);
+}
+
 
 /* --------------------------
    Carousel / Multi-page Logic
@@ -1470,13 +1552,13 @@ body {
 }
 
 .sv-sub-header img {
-  width: 34px;
-  height: 34px;
+  width: 30px;
+  height: 33px;
   border: none;
 }
 
-.sv-sub-header span {
-  color: #fff;
+.sv-sub-header > span {
+  color: #dcbb78;
   text-shadow: 0 1px 2px rgba(0,0,0,0.8);
   font-weight: bold;
   letter-spacing: 0.5px;
@@ -1488,6 +1570,35 @@ body {
   color: #e0e0e0;
 }
 
+
+/* --- Accelerate/Crystallize Icon Overlay --- */
+.sv-accelcryst-icon {
+  position: relative;
+  display: inline-block;
+  width: 30px;
+  height: 33px;
+}
+
+.sv-accelcryst-icon img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  border: none;
+}
+
+.sv-accelcryst-cost {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-family: 'Memento', serif;
+  font-size: 20px;
+  color: #fff;
+  /* Double shadow to ensure readability on both light and dark parts of the icon */
+  text-shadow: 0 1px 2px rgba(0,0,0,0.9), 0 0 5px rgba(0,0,0,1);
+  margin: 0;
+  line-height: 1;
+}
 
 
 /* --------------------------
@@ -1567,10 +1678,262 @@ body {
 }
 
 
+/* --------------------------
+   Workshop Delete Mode
+   -------------------------- */
+.workshop-card.delete-mode img {
+  filter: grayscale(100%);
+  transition: filter 0.2s ease, brightness 0.2s ease;
+}
+
+.workshop-card.delete-mode.to-delete img {
+  filter: grayscale(0%);
+}
+
+.workshop-card.to-delete::after {
+  content: "";
+  position: absolute;
+  top: 0; 
+  left: 0; 
+  right: 0; 
+  bottom: 0;
+  /* Adjust the '60px' to match your preferred x_icon.png size */
+  background: url('assets/misc/checkmark_icon.png') center center / 200px no-repeat;
+  z-index: 10;
+  pointer-events: none;
+}
 
 
 
+/* --------------------------
+   Modal Carousel Animations
+   -------------------------- */
+.slide-out-left {
+  animation: slideOutLeft 0.25s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+.slide-in-right {
+  animation: slideInRight 0.25s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+.slide-out-right {
+  animation: slideOutRight 0.25s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+.slide-in-left {
+  animation: slideInLeft 0.25s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes slideOutLeft {
+  from { transform: translateX(0) scale(1); opacity: 1; }
+  to { transform: translateX(-60px) scale(0.98); opacity: 0; }
+}
+@keyframes slideInRight {
+  from { transform: translateX(60px) scale(0.98); opacity: 0; }
+  to { transform: translateX(0) scale(1); opacity: 1; }
+}
+@keyframes slideOutRight {
+  from { transform: translateX(0) scale(1); opacity: 1; }
+  to { transform: translateX(60px) scale(0.98); opacity: 0; }
+}
+@keyframes slideInLeft {
+  from { transform: translateX(-60px) scale(0.98); opacity: 0; }
+  to { transform: translateX(0) scale(1); opacity: 1; }
+}
 
 
 
+/* --------------------------
+   Delete & Slide Animations
+   -------------------------- */
+.workshop-card.shrink-out {
+  transform: scale(0) !important;
+  opacity: 0 !important;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease !important;
+  pointer-events: none;
+}
 
+.workshop-card.slide-move {
+  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+
+
+/* --------------------------
+   Modal Edit Button
+   -------------------------- */
+.sv-edit-btn {
+  position: absolute;
+  top: -45px;
+  left: 0;
+  background: #2aa48a;
+  color: white;
+  border: 1px solid #1c7a65;
+  padding: 8px 8px;
+  font-size: 16px;
+  cursor: pointer;
+  font-weight: bold;
+  z-index: 30;
+  pointer-events: auto;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.4);
+  transition: background 0.2s, transform 0.2s;
+}
+
+.sv-edit-btn:hover {
+  background: #3cb398;
+  transform: translateY(-2px);
+}
+
+@media (max-width: 1200px) {
+  .sv-edit-btn {
+    top: -50px;
+    left: 20px;
+  }
+}
+
+
+
+/* --- Mobile Workshop Adjustments --- */
+@media (max-width: 768px) {
+  /* Keep 2 cards per row */
+  .workshop-grid {
+    gap: 12px; 
+    justify-content: flex-start;
+  }
+  
+  .workshop-card {
+    width: calc((100% - 12px) / 2); 
+  }
+
+  /* Center the wrapper perfectly H/V */
+  .modal {
+    padding: 0; 
+  }
+  
+  .sv-modal-wrapper {
+    max-width: 84vw;
+    margin: 0;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+  }
+
+  .workshop-modal-content.sv-theme {
+    height: auto;
+    max-height: 84vh; 
+  }
+
+  .sv-modal-header {
+    padding: 8px 0; 
+  }
+
+  .sv-modal-header h2 {
+    font-size: 20px; 
+  }
+
+  /* Shrink the Trait, Class, and Illustrator info */
+  .sv-meta-bar {
+    font-size: 11px;
+    height: auto;
+    padding: 6px 8px;
+    gap: 8px; /* Tighter gaps to fit the smaller screen */
+    flex-wrap: wrap; 
+  }
+
+  #modalMetaString {
+    font-size: 11px;
+  }
+
+  /* Match modal image size to the Workshop grid cards */
+  .sv-theme .modal-image-col {
+    height: auto;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .sv-theme .modal-image-col img {
+    /* Matches the visual width of the 2-per-row grid cards */
+    width: calc((100vw - 32px) / 2); 
+    height: auto;
+    max-height: none; 
+  }
+
+  .sv-evolve-btn-container {
+    display: none !important;
+  }
+
+   /* Force arrows to the extreme edges and center them vertically */
+  .sv-theme .sv-nav-arrow,
+  .sv-nav-arrow {
+    width: 33px !important;
+    position: fixed !important; 
+    top: 50% !important; /* Centers them vertically on the screen */
+    transform: translateY(-50%) !important;
+    z-index: 105 !important;
+  }
+  
+  .sv-theme .sv-arrow-left,
+  .sv-arrow-left { 
+    left: -25px !important; 
+  }
+  
+  .sv-theme .sv-arrow-right,
+  .sv-arrow-right { 
+    right: -25px !important; 
+  }
+   
+   /* Force the modal body to stack its columns vertically */
+  .sv-body {
+    flex-direction: column !important;
+    align-items: center;
+    padding: 0px 15px 15px; 
+  }
+
+  /* Ensure the image column takes the full width to center the image perfectly */
+  .sv-theme .modal-image-col {
+    width: 100%;
+    height: auto;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  /* Maintain the card image size to match the Workshop grid */
+  .sv-theme .modal-image-col img {
+    width: calc((100vw - 16px) / 2);
+    height: auto;
+    max-height: none; 
+  }
+
+   /* Ensure the text info column takes full width and drops below the image */
+  .sv-theme .modal-info-col {
+    width: 100%;
+    margin-top: 0px; 
+    margin-left: 0;
+    height: auto;
+    max-height: 35vh; 
+  }
+
+   /* Set info column text to 11px for mobile */
+  .sv-text-container,
+  .sv-sub-content {
+    font-size: 11px;
+  }
+
+   /* Remove top and bottom padding while keeping the 12px side padding */
+  .sv-sub-header {
+    padding: 3px 12px;
+  }
+
+  /* Resize the Accelerate/Crystallize icon container */
+  .sv-accelcryst-icon {
+    width: 20px;
+    height: 22px;
+  }
+
+  /* Shrink the overlaid cost number to fit the smaller 20x22 icon */
+  .sv-accelcryst-cost {
+    font-size: 14px; /* Scaled down from the original 20px */
+    /* Shift 1px left and 3px up from true center */
+    transform: translate(-50%, -53%);
+  }
+}
