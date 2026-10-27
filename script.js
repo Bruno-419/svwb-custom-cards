@@ -264,7 +264,7 @@ const HIGHLIGHT_KEYWORDS = [
   "On Spellboost","Clash","Mode","Intimidate","Aura","Barrier","Fuse","Fused","Necromancy","Combo",
   "Earth Rite","Rally","Countdown","Reanimate","Earth Sigil","Crystallize","Crystallized","Invoke",
   "Invoked","Sanguine","Skybound Art","Super Skybound Art","Maneuver","Maneuverable","Maneuvering",
-  "Enhance","Union Burst","Accelerate","Burial Rite"
+  "Enhance","Union Burst","Accelerate","Burial Rite","Clue"
 ];
 const HIGHLIGHT_REGEX = new RegExp(`\\b(${HIGHLIGHT_KEYWORDS.join("|")})\\b`, "g");
 
