@@ -1954,6 +1954,7 @@ async function editWorkshopCard() {
   document.getElementById('cardClass').value = card.class || "Neutral";
   document.getElementById('cardType').value = card.type || "Follower";
   document.getElementById('cardRarity').value = card.rarity || "Legendary";
+  document.getElementById('tokenCheckbox').checked = !!card.isToken;
   document.getElementById('illustratorName').value = card.illustrator || "";
 
   // Restore base cost
@@ -2068,6 +2069,7 @@ if (saveBtn) {
         class: classSelect.value,
         type: typeSelect.value,
         rarity: raritySelect.value,
+        isToken: tokenCheckbox.checked,
         cost: costInput.value,
         attack: attackInput.value,
         defense: defenseInput.value,
@@ -2231,6 +2233,7 @@ document.getElementById("downloadBtn").addEventListener("click", async () => {
       class: classSelect.value,
       type: typeSelect.value,
       rarity: raritySelect.value,
+      isToken: tokenCheckbox.checked,
       cost: costInput.value,
       attack: attackInput.value,
       defense: defenseInput.value,
